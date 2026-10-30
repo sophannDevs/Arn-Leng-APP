@@ -9,7 +9,7 @@ The full spec, stack and rules are in [CLAUDE.md](CLAUDE.md). The approved stati
 | Path                 | What it is                                                                 |
 | -------------------- | -------------------------------------------------------------------------- |
 | `apps/web`           | Next.js app (App Router, Tailwind, next-intl): site, reader, studio, admin |
-| `apps/worker`        | BullMQ workers: image processing, billing, scheduled jobs                  |
+| `apps/worker`        | BullMQ workers: image processing, scheduled publishing, billing            |
 | `packages/db`        | Drizzle schema, migrations (`drizzle/`), seed script                       |
 | `packages/shared`    | Business constants, Zod schemas, shared types, access rules                |
 | `packages/payments`  | PaymentProvider interface and ABA PayWay (Phases 7–8)                      |
@@ -65,9 +65,28 @@ Creators and admins manage their work at `/studio`: create and edit a series (ti
 
 - **Uploads never pass through the web server.** The browser asks `POST /api/uploads/presign` for presigned PUT URLs and uploads straight to MinIO (Cloudflare R2 in production). The endpoint checks that you're signed in, own the target series or episode, and that each file is a JPEG, PNG or WebP of at most 20 MB; the file type and exact size are part of the signed URL, so storage rejects anything else. URLs expire after 10 minutes, and each user may request 300 URLs per 10 minutes.
 - **Where files go.** Episode pages: private bucket, `uploads/{episodeId}/{uuid}.{ext}`. Covers, thumbnails and avatars: public bucket (`covers/`, `thumbnails/`, `avatars/`). The public bucket's address is `S3_PUBLIC_BASE_URL` (defaults to MinIO).
-- **Submitting an episode** checks every page really is in storage, fixes the page order, sets the episode to `processing` and queues a `process-episode` job. The worker receives it today but only logs it: turning the pages into optimized images and publishing the episode is Phase 4.
+- **Submitting an episode** checks every page really is in storage, fixes the page order, sets the episode to `processing` and queues a `process-episode` job; see [Image processing](#image-processing) for what the worker does next.
 - **Permissions.** Every studio server action calls `requireSeriesOwner` / `requireEpisodeOwner` first, so only the series owner or an admin can change a series or its episodes, even when an action is called directly. `apps/web/src/server/actions/studio.test.ts` and the Playwright test "a creator cannot open or change another creator's series" prove it.
 - **Browser uploads need CORS on the bucket.** MinIO allows all origins by default. For Cloudflare R2, add a CORS policy to both buckets allowing `PUT` (and `GET`/`HEAD`) from your site's origin with the `Content-Type` header.
+
+## Image processing
+
+When a creator submits an episode, the web app sets it to `processing` and queues a `process-episode` job. The worker (`apps/worker`) then:
+
+1. downloads the uploaded originals from the private bucket, in page order, and checks each one is really an image (from its bytes, not its name), within 20 MB and 2000 px wide;
+2. scales every page to the **first page's width** (capped at 2000 px) so pages line up;
+3. cuts any page taller than 1600 px into chunks of about 1280 px (a last piece under 400 px is merged into the chunk before it), one page at a time to keep memory low;
+4. makes each chunk at **480, 800 and 1200 px wide, never larger than the chunk itself**, in **AVIF and WebP**, plus a tiny blur placeholder (e.g. one 800 x 5000 page becomes 4 chunks and 16 files);
+5. stores the files as `episodes/{episodeId}/{contentHash}/{position}-{width}.{avif|webp}` with `Cache-Control: public, max-age=31536000, immutable` (the hash covers the originals and the processing settings, so the same input always gives the same keys), and saves one `episode_images` row per chunk (width, height, blur placeholder, total bytes);
+6. moves the originals to `originals/{episodeId}/` so the episode can be processed again later;
+7. publishes the episode (`published_at`, and `free_after` from the episode's early-access setting), or, if the creator scheduled it for later, puts it back to `draft` until its time comes.
+
+- **Scheduled publishing:** the `publish-scheduled` job runs every minute and publishes drafts whose time has passed and whose images are ready.
+- **Retries and failures:** a job is tried again 3 times with exponential backoff (5 s, 10 s, 20 s). A file that can't be fixed by retrying (not an image, damaged, too big or too wide) fails at once. After the last failure the episode becomes `failed`, the reason is saved in `episodes.processing_error`, and the studio shows it in plain words with a **Try again** button.
+- **Concurrency:** at most 2 image jobs (episodes and covers together) run at a time (`IMAGE_JOB_CONCURRENCY`).
+- **Covers, thumbnails and avatars:** a `process-cover` job makes three sizes in AVIF and WebP in the public bucket, next to the original: `covers/{id}/{uuid}.png` gets `covers/{id}/{uuid}/{240|480|800}.{avif|webp}` (avatars: 64/128/256, cropped square).
+- **Page refresh:** after publishing, the worker calls `POST /api/internal/revalidate` on the web app (protected by `INTERNAL_API_SECRET`) so cached home and series pages update. Those public pages arrive in Phase 5.
+- **Sample images:** `pnpm seed:images` draws sample comic pages for the seeded episodes and runs them through this same pipeline (options: `--series a,b`, `--episodes 3`, `--pages 3`, `--force`). It only touches series owned by `@inkline.test` users.
 
 ## Authentication and roles
 
@@ -107,6 +126,7 @@ It queues an example job and prints the worker's reply, e.g. `Hello, Inkline! Th
 | `pnpm db:migrate`                    | Apply pending migrations (uses `DIRECT_URL` if set)                        |
 | `pnpm db:seed`                       | Reset the database to the development seed data                            |
 | `pnpm db:studio`                     | Browse the database in Drizzle Studio                                      |
+| `pnpm seed:images`                   | Make sample comic pages for the seeded episodes and process them           |
 
 The first time you run end-to-end tests, install the browser: `pnpm --filter @inkline/web exec playwright install chromium`. They need `.env`, the services (Redis) and a migrated database, like `pnpm dev`, and they need internet access for Cloudflare's Turnstile. The sign-up tests create users named `e2e-…@inkline.test` and delete them when the run ends.
 
@@ -126,6 +146,7 @@ The build follows the phase plan in the project's build prompt. Each phase ends 
 - [x] Phase 1: database and access rule
 - [x] Phase 2: authentication and roles
 - [x] Phase 3: creator studio and uploads
-- [ ] Phases 4–11: images, public site and reader, engagement, subscriptions, PayWay, security, admin, deployment
+- [x] Phase 4: image processing worker
+- [ ] Phases 5–11: public site and reader, engagement, subscriptions, PayWay, security, admin, deployment
 
 # Arn-Leng-APP

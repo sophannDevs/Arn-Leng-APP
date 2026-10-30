@@ -12,12 +12,14 @@ const valid = {
   S3_BUCKET_PRIVATE: 'inkline-private',
   S3_BUCKET_PUBLIC: 'inkline-public',
   BETTER_AUTH_SECRET: 'dev-only-secret-at-least-32-characters-long',
+  INTERNAL_API_SECRET: 'dev-only-internal-secret-at-least-32-chars',
 };
 
 const production = {
   ...valid,
   NODE_ENV: 'production',
   BETTER_AUTH_SECRET: 'a'.repeat(40),
+  INTERNAL_API_SECRET: 'b'.repeat(40),
   TURNSTILE_SITE_KEY: 'site',
   TURNSTILE_SECRET_KEY: 'secret',
   RESEND_API_KEY: 're_123',
@@ -62,6 +64,12 @@ describe('parseWebEnv', () => {
         expect(() => parseWebEnv({ ...production, [key]: undefined })).toThrow(new RegExp(key));
       },
     );
+
+    it('rejects the development placeholder for the internal secret too', () => {
+      expect(() =>
+        parseWebEnv({ ...production, INTERNAL_API_SECRET: valid.INTERNAL_API_SECRET }),
+      ).toThrow(/INTERNAL_API_SECRET/);
+    });
 
     it('rejects the development secret placeholder', () => {
       expect(() =>

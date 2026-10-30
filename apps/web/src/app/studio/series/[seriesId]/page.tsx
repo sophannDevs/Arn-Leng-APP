@@ -9,6 +9,7 @@ import { StudioShell } from '@/components/studio/studio-shell';
 import { Panel } from '@/components/ui';
 import { setSeriesCoverAction } from '@/server/actions/studio';
 import { requireSeriesOwner } from '@/server/auth/session';
+import { describeProcessingError } from '@/server/studio/failure';
 import { db } from '@/server/db';
 import { publicUrl } from '@/server/storage';
 
@@ -17,6 +18,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesI
   // 403 unless this is the creator's own series (or an admin).
   const { series } = await requireSeriesOwner(seriesId);
   const t = await getTranslations('studio');
+  const tFailure = await getTranslations('studio.failure');
 
   const rows = await db
     .select()
@@ -30,6 +32,8 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesI
     status: row.status,
     accessMode: accessModeOf(row),
     scheduledAt: row.scheduledAt?.toISOString() ?? null,
+    failure:
+      row.status === 'failed' ? describeProcessingError(tFailure, row.processingError) : null,
   }));
   const language = LOCALES.find((code) => code === series.language) ?? LOCALES[0];
 

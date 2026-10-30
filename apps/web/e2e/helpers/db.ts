@@ -1,4 +1,12 @@
-import { createDb, creatorProfiles, episodeUploads, episodes, series, users } from '@inkline/db';
+import {
+  createDb,
+  creatorProfiles,
+  episodeImages,
+  episodeUploads,
+  episodes,
+  series,
+  users,
+} from '@inkline/db';
 import { asc, eq, inArray, like } from 'drizzle-orm';
 
 export const E2E_EMAIL_PREFIX = 'e2e-';
@@ -78,6 +86,35 @@ export function getEpisode(id: string) {
   );
 }
 
+export function getImages(episodeId: string) {
+  return withDb((db) =>
+    db
+      .select()
+      .from(episodeImages)
+      .where(eq(episodeImages.episodeId, episodeId))
+      .orderBy(asc(episodeImages.position)),
+  );
+}
+
+/** Sets when an episode should publish, bypassing the form (which only takes whole minutes). */
+export function setScheduledAt(episodeId: string, at: Date | null) {
+  return withDb((db) =>
+    db.update(episodes).set({ scheduledAt: at }).where(eq(episodes.id, episodeId)),
+  );
+}
+
+/** Waits (polling the database) until an episode has the given status; returns its row. */
+export async function waitForStatus(episodeId: string, status: string, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const episode = await getEpisode(episodeId);
+    if (episode?.status === status) return episode;
+    if (Date.now() > deadline)
+      throw new Error(`Episode ${episodeId} is "${episode?.status}", expected "${status}"`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
+
 export function getUploads(episodeId: string) {
   return withDb((db) =>
     db
@@ -88,12 +125,20 @@ export function getUploads(episodeId: string) {
   );
 }
 
-/** Storage keys of every file the test users uploaded, so the teardown can delete them from MinIO. */
-export function collectTestObjectKeys() {
+/**
+ * Everything the test users put in storage, so the teardown can delete it from MinIO: single files
+ * (uploads, covers, ...) and whole folders (processed images, originals, resized versions).
+ */
+export function collectTestObjects() {
   return withDb(async (db) => {
     const pattern = `${E2E_EMAIL_PREFIX}%${E2E_EMAIL_DOMAIN}`;
     const owners = db.select({ id: users.id }).from(users).where(like(users.email, pattern));
-    const pages = await db
+    const rows = await db
+      .select({ episodeId: episodes.id, thumbnail: episodes.thumbnailKey })
+      .from(episodes)
+      .innerJoin(series, eq(series.id, episodes.seriesId))
+      .where(inArray(series.creatorId, owners));
+    const uploads = await db
       .select({ key: episodeUploads.objectKey })
       .from(episodeUploads)
       .innerJoin(episodes, eq(episodes.id, episodeUploads.episodeId))
@@ -103,24 +148,26 @@ export function collectTestObjectKeys() {
       .select({ key: series.coverKey })
       .from(series)
       .where(inArray(series.creatorId, owners));
-    const thumbnails = await db
-      .select({ key: episodes.thumbnailKey })
-      .from(episodes)
-      .innerJoin(series, eq(series.id, episodes.seriesId))
-      .where(inArray(series.creatorId, owners));
     const avatars = await db
       .select({ key: users.avatarKey })
       .from(users)
       .where(like(users.email, pattern));
-    const keys = (rows: Array<{ key: string | null }>) =>
-      rows.map((r) => r.key).filter((k): k is string => Boolean(k));
+
+    const publicKeys = [
+      ...covers.map((r) => r.key),
+      ...rows.map((r) => r.thumbnail),
+      ...avatars.map((r) => r.key),
+    ].filter((key): key is string => Boolean(key) && !key?.startsWith('http'));
     return {
-      private: pages.map((p) => p.key),
-      public: [
-        ...keys(covers),
-        ...keys(thumbnails),
-        ...keys(avatars).filter((k) => !k.startsWith('http')),
-      ],
+      privateKeys: uploads.map((u) => u.key),
+      privatePrefixes: rows.flatMap((r) => [
+        `episodes/${r.episodeId}/`,
+        `originals/${r.episodeId}/`,
+        `uploads/${r.episodeId}/`,
+      ]),
+      publicKeys,
+      // covers/{id}/{uuid}.png -> covers/{id}/{uuid}/ (the resized versions)
+      publicPrefixes: publicKeys.map((key) => `${key.replace(/\.[^./]+$/, '')}/`),
     };
   });
 }

@@ -351,6 +351,26 @@
         "queueFailed": "We couldn't start processing. Try again in a moment.",
         "generic": "Something went wrong. Try again."
       }
+    },
+    "processing": {
+      "lead": "We're preparing your pages. This page updates by itself when it's done.",
+      "failedTitle": "Processing failed",
+      "retryHint": "If a page is the problem, replace it below and submit the episode again.",
+      "retry": "Try again",
+      "retrying": "Starting…",
+      "retryFailed": "We couldn't start processing. Try again in a moment.",
+      "scheduledReady": "Your pages are ready. This episode will publish on",
+      "published": "Published. {count, plural, one {# image} other {# images}} ready for readers."
+    },
+    "failure": {
+      "not_image": "Page {page} ({fileName}) isn't a JPEG, PNG or WebP image. It may be another kind of file with an image name.",
+      "unreadable": "Page {page} ({fileName}) is damaged and can't be read as an image.",
+      "too_large": "Page {page} ({fileName}) is too big. The limit is {size} MB per file.",
+      "too_wide": "Page {page} ({fileName}) is wider than {width} px.",
+      "too_many_pixels": "Page {page} ({fileName}) has too many pixels. Cut a very long page into two parts.",
+      "missing_original": "Page {page} ({fileName}) is missing from storage. Upload it again.",
+      "no_pages": "This episode has no pages to process.",
+      "failed": "Processing didn't finish after several tries. Try again; if it keeps failing, contact support."
     }
   },
   "admin": {

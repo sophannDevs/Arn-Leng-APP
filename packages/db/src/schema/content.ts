@@ -1,6 +1,16 @@
-import { DEFAULT_LOCALE } from '@inkline/shared';
+import { DEFAULT_LOCALE, type ProcessingError } from '@inkline/shared';
 import { sql } from 'drizzle-orm';
-import { boolean, check, index, integer, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { createdAt, id, timestamptz } from './columns';
 import { ageRating, episodeAccessType, episodeStatus, seriesStatus, uploadStatus } from './enums';
 import { users } from './users';
@@ -52,6 +62,8 @@ export const episodes = pgTable(
     freeAfter: timestamptz('free_after'),
     scheduledAt: timestamptz('scheduled_at'),
     publishedAt: timestamptz('published_at'),
+    // Set when processing failed for good; shown to the creator in the studio. Cleared on retry.
+    processingError: jsonb('processing_error').$type<ProcessingError>(),
   },
   (t) => [
     // Also serves "episodes of a series in order" lookups.
@@ -77,6 +89,7 @@ export const episodeImages = pgTable(
     width: integer('width').notNull(),
     height: integer('height').notNull(),
     blurDataUrl: text('blur_data_url').notNull(),
+    // Total size of every file (all widths, AVIF and WebP) made for this chunk.
     bytes: integer('bytes').notNull(),
   },
   (t) => [

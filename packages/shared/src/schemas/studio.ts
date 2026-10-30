@@ -79,3 +79,27 @@ export const submitEpisodeSchema = z.object({
 export const QUEUE_PROCESS_EPISODE = 'process-episode';
 export const processEpisodeJobSchema = z.object({ episodeId: idSchema });
 export type ProcessEpisodeJob = z.infer<typeof processEpisodeJobSchema>;
+
+/** Queue and job for resizing an uploaded cover, thumbnail or avatar. */
+export const QUEUE_PROCESS_IMAGE = 'process-cover';
+export const IMAGE_VARIANT_KINDS = ['cover', 'thumbnail', 'avatar'] as const;
+export type ImageVariantKind = (typeof IMAGE_VARIANT_KINDS)[number];
+
+const folderForKind: Record<ImageVariantKind, string> = {
+  cover: 'covers',
+  thumbnail: 'thumbnails',
+  avatar: 'avatars',
+};
+
+export const processImageJobSchema = z
+  .object({
+    kind: z.enum(IMAGE_VARIANT_KINDS),
+    /** The key the browser uploaded to, in the public bucket: `{folder}/{ownerId}/{uuid}.{ext}`. */
+    key: z.string().max(200),
+  })
+  .refine(
+    ({ kind, key }) =>
+      new RegExp(`^${folderForKind[kind]}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|png|webp)$`).test(key),
+    { message: 'key does not match the image kind', path: ['key'] },
+  );
+export type ProcessImageJob = z.infer<typeof processImageJobSchema>;

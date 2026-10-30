@@ -1,4 +1,10 @@
-import { createStorageClient, deleteObjects, headObject } from '@inkline/storage';
+import {
+  createStorageClient,
+  deleteObjects,
+  deletePrefix,
+  headObject,
+  listKeys,
+} from '@inkline/storage';
 
 const client = () =>
   createStorageClient({
@@ -17,3 +23,18 @@ export const deleteTestObjects = (
   bucketVar: 'S3_BUCKET_PRIVATE' | 'S3_BUCKET_PUBLIC',
   keys: string[],
 ) => deleteObjects(client(), { bucket: process.env[bucketVar] ?? '', keys });
+
+/** Every key under a prefix, sorted. */
+export const listObjectKeys = async (
+  bucketVar: 'S3_BUCKET_PRIVATE' | 'S3_BUCKET_PUBLIC',
+  prefix: string,
+) => (await listKeys(client(), { bucket: process.env[bucketVar] ?? '', prefix })).sort();
+
+/** Deletes every file under each of the given folders. */
+export const deleteTestPrefixes = async (
+  bucketVar: 'S3_BUCKET_PRIVATE' | 'S3_BUCKET_PUBLIC',
+  prefixes: string[],
+) => {
+  for (const prefix of prefixes)
+    await deletePrefix(client(), { bucket: process.env[bucketVar] ?? '', prefix });
+};

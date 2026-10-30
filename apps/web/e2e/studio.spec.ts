@@ -108,10 +108,10 @@ test('a creator creates a series, uploads a cover and pages to MinIO, and submit
     expect(anonymous.status()).toBe(403);
   }
 
-  // Submit: the episode goes to "processing" and the job is queued.
+  // Submit: the episode is set to "processing" and the job is queued (the real worker then
+  // processes it; Phase 4 tests check the images in detail).
   await page.getByRole('button', { name: 'Submit 3 pages for processing' }).click();
-  await expect(page.getByText(/is processing, so it can't be edited/i)).toBeVisible();
-  expect((await getEpisode(episodeId))?.status).toBe('processing');
+  await expect(page.getByRole('button', { name: /Submit/ })).toHaveCount(0);
   const finalUploads = await getUploads(episodeId);
   expect(finalUploads.map((row) => row.fileName)).toEqual([
     'page-a.png',
@@ -123,8 +123,8 @@ test('a creator creates a series, uploads a cover and pages to MinIO, and submit
   const job = await findProcessEpisodeJob(episodeId);
   expect(job?.data.episodeId).toBe(episodeId);
 
-  // A processing episode can't be submitted or edited again.
-  await expect(page.getByRole('button', { name: /Submit/ })).toHaveCount(0);
+  // Once submitted, the episode can't be submitted or edited again, whatever the worker has done since.
+  expect(['processing', 'published']).toContain((await getEpisode(episodeId))?.status);
   await expect(page.getByRole('button', { name: 'Save details' })).toBeDisabled();
 });
 

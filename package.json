@@ -20,7 +20,8 @@
     "db:migrate": "pnpm --filter @inkline/db db:migrate",
     "db:seed": "pnpm --filter @inkline/db db:seed",
     "db:studio": "pnpm --filter @inkline/db db:studio",
-    "example-job": "pnpm --filter @inkline/worker enqueue:example"
+    "example-job": "pnpm --filter @inkline/worker enqueue:example",
+    "seed:images": "pnpm --filter @inkline/worker seed:images"
   },
   "devDependencies": {
     "@inkline/config": "workspace:*",

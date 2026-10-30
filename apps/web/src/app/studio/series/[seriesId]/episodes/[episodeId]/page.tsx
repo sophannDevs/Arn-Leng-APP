@@ -1,18 +1,21 @@
-import { episodeUploads } from '@inkline/db';
+import { episodeImages, episodeUploads } from '@inkline/db';
 import { accessModeOf } from '@inkline/shared';
 import { headObject } from '@inkline/storage';
-import { asc, eq } from 'drizzle-orm';
+import { asc, count, eq } from 'drizzle-orm';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { EpisodeForm } from '@/components/studio/episode-form';
+import { LocalTime } from '@/components/local-time';
 import { EpisodeUploader, type InitialPage } from '@/components/studio/episode-uploader';
 import { ImageUploader } from '@/components/studio/image-uploader';
+import { AutoRefresh, RetryProcessingButton } from '@/components/studio/processing-status';
 import { StudioShell } from '@/components/studio/studio-shell';
 import { FormMessage, Panel } from '@/components/ui';
 import { setEpisodeThumbnailAction } from '@/server/actions/studio';
 import { requireEpisodeOwner } from '@/server/auth/session';
 import { db } from '@/server/db';
 import { buckets, publicUrl, storage } from '@/server/storage';
+import { describeProcessingError } from '@/server/studio/failure';
 import { isEditableStatus, mapLimit } from '@/server/studio/helpers';
 
 export default async function EpisodePage({
@@ -26,6 +29,13 @@ export default async function EpisodePage({
   if (series.id !== seriesId) notFound();
   const t = await getTranslations('studio');
   const editable = isEditableStatus(episode.status);
+  const tFailure = await getTranslations('studio.failure');
+  const [images] = await db
+    .select({ chunks: count() })
+    .from(episodeImages)
+    .where(eq(episodeImages.episodeId, episode.id));
+  const readyToPublish =
+    episode.status === 'draft' && (images?.chunks ?? 0) > 0 && episode.scheduledAt !== null;
 
   // Pages uploaded earlier but not submitted yet. A row whose file never arrived is left out.
   const rows = await db
@@ -48,7 +58,32 @@ export default async function EpisodePage({
         { href: `/studio/series/${series.id}`, label: series.title },
       ]}
     >
-      {!editable && (
+      {episode.status === 'processing' && (
+        <>
+          <AutoRefresh />
+          <FormMessage kind="success">{t('processing.lead')}</FormMessage>
+        </>
+      )}
+      {episode.status === 'failed' && (
+        <Panel title={t('processing.failedTitle')}>
+          <FormMessage kind="error">
+            {describeProcessingError(tFailure, episode.processingError)}
+          </FormMessage>
+          <p className="m-0 text-sm text-muted">{t('processing.retryHint')}</p>
+          <RetryProcessingButton episodeId={episode.id} />
+        </Panel>
+      )}
+      {readyToPublish && episode.scheduledAt && (
+        <FormMessage kind="success">
+          {t('processing.scheduledReady')} <LocalTime iso={episode.scheduledAt.toISOString()} />
+        </FormMessage>
+      )}
+      {episode.status === 'published' && (
+        <FormMessage kind="success">
+          {t('processing.published', { count: images?.chunks ?? 0 })}
+        </FormMessage>
+      )}
+      {!editable && episode.status !== 'processing' && episode.status !== 'published' && (
         <FormMessage kind="success">
           {t('episode.statusNotice', { status: t(`episodes.statuses.${episode.status}`) })}
         </FormMessage>

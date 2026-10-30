@@ -29,6 +29,13 @@
       "when": 1793363667846,
       "tag": "0003_backfill-early-access",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793366943333,
+      "tag": "0004_processing-error",
+      "breakpoints": true
     }
   ]
 }

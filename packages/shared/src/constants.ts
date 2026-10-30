@@ -40,3 +40,24 @@ export const MAX_FILES_PER_PRESIGN = 50;
 export const PRESIGN_EXPIRES_SECONDS = 10 * 60;
 /** Presigned URLs a user may request per window. */
 export const UPLOAD_URL_RATE_LIMIT = { maxAttempts: 300, windowSeconds: 10 * 60 } as const;
+
+/** Episode page processing (apps/worker). */
+/** Pages up to this tall stay in one piece; taller pages are cut into chunks. */
+export const SLICE_THRESHOLD_HEIGHT = 1600;
+/** Height of each chunk a tall page is cut into. */
+export const CHUNK_HEIGHT = 1280;
+/** A last piece shorter than this is merged into the chunk before it. */
+export const MIN_LAST_CHUNK_HEIGHT = 400;
+/** Widths every chunk is made in (never larger than the chunk itself), in AVIF and WebP. */
+export const EPISODE_IMAGE_WIDTHS = [480, 800, 1200] as const;
+/** Largest image the worker will decode, as a pixel count: guards against decompression bombs. */
+export const MAX_IMAGE_PIXELS = MAX_IMAGE_WIDTH * 50_000;
+/** Processed images have content-hashed keys, so browsers and the CDN can keep them forever. */
+export const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+
+/** Sizes made for covers, thumbnails and avatars (never larger than the upload), in AVIF and WebP. */
+export const IMAGE_VARIANT_WIDTHS = {
+  cover: [240, 480, 800],
+  thumbnail: [240, 480, 800],
+  avatar: [64, 128, 256],
+} as const;

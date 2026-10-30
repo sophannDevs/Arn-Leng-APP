@@ -9,14 +9,19 @@ import {
   submitEpisodeSchema,
 } from '@inkline/shared';
 import { headObject, keyPrefix } from '@inkline/storage';
-import { and, eq, inArray, max, notInArray, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, max, notInArray, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '../db';
 import { requireEpisodeOwner, requireRole, requireSeriesOwner, requireUser } from '../auth/session';
 import { enqueueProcessEpisode } from '../queue';
 import { buckets, storage } from '../storage';
-import { deleteQuietly, verifyPublicUpload } from '../studio/files';
+import {
+  deleteImageAndVariants,
+  deleteQuietly,
+  queueImageProcessing,
+  verifyPublicUpload,
+} from '../studio/files';
 import {
   type ActionOutcome,
   field,
@@ -91,8 +96,9 @@ export async function setSeriesCoverAction(
   if (!key) return { ok: false, error: 'badFile' };
   await db.update(series).set({ coverKey: key }).where(eq(series.id, current.id));
   if (current.coverKey && current.coverKey !== key) {
-    await swallow(() => deleteQuietly(buckets.public, [current.coverKey]));
+    await swallow(() => deleteImageAndVariants(buckets.public, current.coverKey));
   }
+  await queueImageProcessing('cover', key);
   revalidatePath('/studio');
   return { ok: true, coverKey: key };
 }
@@ -163,8 +169,9 @@ export async function setEpisodeThumbnailAction(
   if (!key) return { ok: false, error: 'badFile' };
   await db.update(episodes).set({ thumbnailKey: key }).where(eq(episodes.id, episode.id));
   if (episode.thumbnailKey && episode.thumbnailKey !== key) {
-    await swallow(() => deleteQuietly(buckets.public, [episode.thumbnailKey]));
+    await swallow(() => deleteImageAndVariants(buckets.public, episode.thumbnailKey));
   }
+  await queueImageProcessing('thumbnail', key);
   revalidatePath(`/studio/series/${episode.seriesId}`);
   return { ok: true, thumbnailKey: key };
 }
@@ -188,7 +195,7 @@ export async function deleteEpisodeAction(input: unknown): Promise<ActionOutcome
       uploads.map((u) => u.key),
     ),
   );
-  await swallow(() => deleteQuietly(buckets.public, [episode.thumbnailKey]));
+  await swallow(() => deleteImageAndVariants(buckets.public, episode.thumbnailKey));
   revalidatePath(`/studio/series/${episode.seriesId}`);
   return { ok: true };
 }
@@ -273,7 +280,7 @@ export async function submitEpisodeAction(input: unknown): Promise<ActionOutcome
     await db.transaction(async (tx) => {
       const moved = await tx
         .update(episodes)
-        .set({ status: 'processing' })
+        .set({ status: 'processing', processingError: null })
         .where(and(eq(episodes.id, episode.id), inArray(episodes.status, ['draft', 'failed'])))
         .returning({ id: episodes.id });
       if (moved.length === 0) throw new SubmitConflict(); // submitted twice, or changed meanwhile
@@ -306,6 +313,43 @@ export async function submitEpisodeAction(input: unknown): Promise<ActionOutcome
   return { ok: true };
 }
 
+/**
+ * Runs processing again for an episode that failed, with the pages already uploaded. If a page was
+ * the problem, the creator changes the pages and submits again instead.
+ */
+export async function retryProcessingAction(input: unknown): Promise<ActionOutcome> {
+  const { episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  if (episode.status !== 'failed') return { ok: false, error: 'locked' };
+  const [pages] = await db
+    .select({ pages: count() })
+    .from(episodeUploads)
+    .where(eq(episodeUploads.episodeId, episode.id));
+  if (!pages?.pages) return { ok: false, error: 'incomplete' };
+
+  const moved = await db
+    .update(episodes)
+    .set({ status: 'processing', processingError: null })
+    .where(and(eq(episodes.id, episode.id), eq(episodes.status, 'failed')))
+    .returning({ id: episodes.id });
+  if (moved.length === 0) return { ok: false, error: 'locked' }; // retried twice at once
+
+  try {
+    await enqueueProcessEpisode(episode.id);
+  } catch (error) {
+    console.error(
+      'Could not queue process-episode:',
+      error instanceof Error ? error.message : 'unknown error',
+    );
+    await db
+      .update(episodes)
+      .set({ status: 'failed', processingError: episode.processingError })
+      .where(eq(episodes.id, episode.id));
+    return { ok: false, error: 'queueFailed' };
+  }
+  revalidatePath(`/studio/series/${episode.seriesId}`);
+  return { ok: true };
+}
+
 /** Saves an avatar the user just uploaded to the public bucket (see /api/uploads/presign). */
 export async function setAvatarAction(
   input: unknown,
@@ -318,9 +362,10 @@ export async function setAvatarAction(
   );
   if (!key) return { ok: false, error: 'badFile' };
   await db.update(users).set({ avatarKey: key }).where(eq(users.id, user.id));
-  if (user.avatarKey && user.avatarKey !== key && !user.avatarKey.startsWith('http')) {
-    await swallow(() => deleteQuietly(buckets.public, [user.avatarKey]));
+  if (user.avatarKey && user.avatarKey !== key) {
+    await swallow(() => deleteImageAndVariants(buckets.public, user.avatarKey));
   }
+  await queueImageProcessing('avatar', key);
   revalidatePath('/account');
   return { ok: true, avatarKey: key };
 }

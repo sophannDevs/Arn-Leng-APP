@@ -71,7 +71,10 @@ vi.mock('@inkline/storage', async (importOriginal) => ({
   headObject: async () => (storageCalls.push('head'), null),
   deleteObjects: async () => void storageCalls.push('delete'),
 }));
-vi.mock('../queue', () => ({ enqueueProcessEpisode: (...a: unknown[]) => enqueue(...a) }));
+vi.mock('../queue', () => ({
+  enqueueProcessEpisode: (...a: unknown[]) => enqueue(...a),
+  enqueueProcessImage: (...a: unknown[]) => enqueue(...a),
+}));
 
 const actions = await import('./studio');
 
@@ -150,6 +153,11 @@ const attacks: Array<[string, () => Promise<unknown>, 'series' | 'episode']> = [
   [
     'moveEpisodeAction',
     () => actions.moveEpisodeAction({ episodeId: EPISODE_ID, direction: 'up' }),
+    'episode',
+  ],
+  [
+    'retryProcessingAction',
+    () => actions.retryProcessingAction({ episodeId: EPISODE_ID }),
     'episode',
   ],
   [

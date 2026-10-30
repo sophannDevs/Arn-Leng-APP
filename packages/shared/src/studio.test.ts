@@ -209,3 +209,30 @@ describe('submitEpisodeSchema', () => {
     expect(submitEpisodeSchema.safeParse({ episodeId: ID, uploadIds: ['x'] }).success).toBe(false);
   });
 });
+
+describe('processImageJobSchema', async () => {
+  const { processImageJobSchema } = await import('./schemas/studio');
+  const UUID = '0b6f6a3e-52a1-4f0e-9d0a-3f8f2f6f9c11';
+
+  it('accepts a key in the folder for its kind', () => {
+    expect(
+      processImageJobSchema.safeParse({ kind: 'cover', key: `covers/${ID}/${UUID}.png` }).success,
+    ).toBe(true);
+    expect(
+      processImageJobSchema.safeParse({ kind: 'avatar', key: `avatars/${ID}/${UUID}.webp` })
+        .success,
+    ).toBe(true);
+  });
+
+  it('rejects other folders, other extensions and path tricks', () => {
+    for (const key of [
+      `thumbnails/${ID}/${UUID}.png`,
+      `covers/${ID}/${UUID}.svg`,
+      `covers/../uploads/${ID}/${UUID}.png`,
+      `covers/${ID}/${UUID}/x.png`,
+      `uploads/${ID}/${UUID}.png`,
+    ]) {
+      expect(processImageJobSchema.safeParse({ kind: 'cover', key }).success, key).toBe(false);
+    }
+  });
+});

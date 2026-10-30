@@ -25,3 +25,20 @@ export async function findProcessEpisodeJob(episodeId: string, timeoutMs = 15_00
     connection.disconnect();
   }
 }
+
+/** How many process-episode jobs have been queued for an episode (finished ones are kept for a while). */
+export async function countProcessEpisodeJobs(episodeId: string) {
+  const connection = new Redis(process.env.REDIS_URL ?? '', { maxRetriesPerRequest: null });
+  const queue = new Queue(QUEUE_PROCESS_EPISODE, { connection });
+  try {
+    const jobs = await queue.getJobs(
+      ['waiting', 'active', 'completed', 'delayed', 'failed'],
+      0,
+      500,
+    );
+    return jobs.filter((job) => job.data?.episodeId === episodeId).length;
+  } finally {
+    await queue.close();
+    connection.disconnect();
+  }
+}

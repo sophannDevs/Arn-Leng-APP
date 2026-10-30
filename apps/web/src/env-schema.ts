@@ -23,6 +23,9 @@ export const webEnvSchema = z
     // Auth. The secret signs cookies and encrypts 2FA secrets: rotating it signs everyone out and
     // breaks 2FA. Generate one with `openssl rand -base64 32`.
     BETTER_AUTH_SECRET: z.string().min(32, 'must be at least 32 characters'),
+    // Shared with the worker: protects POST /api/internal/revalidate (the worker calls it after
+    // publishing). Generate one with `openssl rand -base64 32`.
+    INTERNAL_API_SECRET: z.string().min(32, 'must be at least 32 characters'),
     // Cloudflare Turnstile (sign-up and password reset). Unset in development = no challenge.
     TURNSTILE_SITE_KEY: optional(z.string().min(1)),
     TURNSTILE_SECRET_KEY: optional(z.string().min(1)),
@@ -57,6 +60,13 @@ export const webEnvSchema = z
       need('TURNSTILE_SITE_KEY');
       need('TURNSTILE_SECRET_KEY');
       need('RESEND_API_KEY');
+      if (env.INTERNAL_API_SECRET.startsWith('dev-only')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['INTERNAL_API_SECRET'],
+          message: 'must not be the development placeholder',
+        });
+      }
       if (env.BETTER_AUTH_SECRET.startsWith('dev-only')) {
         ctx.addIssue({
           code: 'custom',

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, FormMessage, linkClass } from '@/components/ui';
-import { useHydrated } from '@/components/submit-button';
+import { LocalTime } from '@/components/local-time';
 import {
   createEpisodeAction,
   deleteEpisodeAction,
@@ -20,19 +20,11 @@ export type EpisodeListItem = {
   status: EpisodeStatus;
   accessMode: EpisodeAccessMode;
   scheduledAt: string | null;
+  /** Why processing failed, already in the creator's language (only for failed episodes). */
+  failure: string | null;
 };
 
 const isEditable = (status: EpisodeStatus) => status === 'draft' || status === 'failed';
-
-/** UTC text on the server, the browser's local time once hydrated (avoids a time-zone mismatch). */
-function LocalTime({ iso }: { iso: string }) {
-  const hydrated = useHydrated();
-  return (
-    <time dateTime={iso}>
-      {hydrated ? new Date(iso).toLocaleString() : `${iso.slice(0, 16).replace('T', ' ')} UTC`}
-    </time>
-  );
-}
 
 export function EpisodeTable({
   seriesId,
@@ -144,6 +136,11 @@ export function EpisodeTable({
                       <span className="rounded-lg border-2 border-ink bg-white px-2 py-0.5 text-[11px] font-bold uppercase">
                         {t(`statuses.${episode.status}`)}
                       </span>
+                      {episode.failure && (
+                        <span className="mt-1 block max-w-[16rem] text-xs text-brand-dark">
+                          {episode.failure}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 pr-3">{t(`accessModes.${episode.accessMode}`)}</td>
                     <td className="py-2 pr-3">
