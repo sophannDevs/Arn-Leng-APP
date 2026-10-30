@@ -7,3 +7,4 @@ playwright-report/
 test-results/
 design/prototype/
 CLAUDE.md
+packages/db/drizzle/

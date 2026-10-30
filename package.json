@@ -16,6 +16,10 @@
     "format:check": "prettier --check .",
     "services:up": "docker compose up -d --wait postgres redis minio && docker compose run --rm minio-init",
     "services:down": "docker compose down",
+    "db:generate": "pnpm --filter @inkline/db db:generate",
+    "db:migrate": "pnpm --filter @inkline/db db:migrate",
+    "db:seed": "pnpm --filter @inkline/db db:seed",
+    "db:studio": "pnpm --filter @inkline/db db:studio",
     "example-job": "pnpm --filter @inkline/worker enqueue:example"
   },
   "devDependencies": {

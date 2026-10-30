@@ -1,2 +1,5 @@
-// @inkline/db: Drizzle schema, migrations and seed script. The schema arrives in Phase 1.
-export {};
+// @inkline/db: Drizzle schema, client, migrations (./drizzle) and seed script.
+export * from './client';
+export * from './env';
+export * as schema from './schema';
+export * from './schema';
