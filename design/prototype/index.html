@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inkline: Webtoons and Comics</title>
+<meta name="description" content="Read webtoons and comics on Inkline. The first 3 episodes of every series are free.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<div class="page" id="top">
+  <div id="site-header"></div>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero">
+      <svg class="clouds" aria-hidden="true" viewBox="0 0 1200 560" preserveAspectRatio="xMidYMid slice">
+        <g fill="#E4E1DC" stroke="#111" stroke-width="2.5">
+          <circle cx="40" cy="150" r="70"/><circle cx="110" cy="120" r="55"/><circle cx="20" cy="230" r="60"/>
+          <circle cx="1120" cy="140" r="60"/><circle cx="1180" cy="210" r="70"/>
+        </g>
+        <g fill="#CFCCC7" stroke="#111" stroke-width="2.5" opacity="0.9">
+          <circle cx="780" cy="430" r="70"/><circle cx="880" cy="400" r="60"/><circle cx="980" cy="440" r="70"/><circle cx="1090" cy="410" r="60"/>
+        </g>
+      </svg>
+      <div class="hero-inner wrap">
+        <div class="hero-copy">
+          <p class="eyebrow">Welcome to <span>Inkline</span></p>
+          <h1>Read the Best<br><span class="red">Webtoons</span></h1>
+          <p class="lead">The first 3 episodes of every series are free. Subscribers read new episodes 7 days early.</p>
+          <div class="hero-ctas">
+            <a href="#all" class="btn btn-lg">Start Reading</a>
+            <a href="subscribe.html" class="btn btn-lg btn-ghost" style="box-shadow:none">See Premium</a>
+          </div>
+        </div>
+        <div class="fan" id="fan"></div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features wrap" aria-label="Why Inkline">
+      <div class="grid-4">
+        <div class="fc">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="#D91E1E" aria-hidden="true"><path d="M2 5.5 11 4v15L2 20.5z"/><path d="M13 4l9 1.5v15L13 19z" opacity=".7"/></svg>
+          <div><h3>3 FREE EPISODES</h3><p>Start any series at no cost.</p></div>
+        </div>
+        <div class="fc">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D91E1E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="#D91E1E" fill-opacity=".2"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>
+          <div><h3>7 DAYS EARLY</h3><p>Subscribers read new episodes first.</p></div>
+        </div>
+        <div class="fc">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="#D91E1E" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><rect x="8.5" y="5" width="7" height="12" rx="1" fill="#fff"/><circle cx="12" cy="19.3" r="1" fill="#fff"/></svg>
+          <div><h3>READ ANYWHERE</h3><p>Built for phones, works on any screen.</p></div>
+        </div>
+        <div class="fc">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5 4.5 5.5v6c0 4.5 3 8 7.5 10 4.5-2 7.5-5.5 7.5-10v-6z" fill="#D91E1E" fill-opacity=".85"/><path d="m8.5 12 2.5 2.5 4.5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div><h3>SECURED PAYMENT</h3><p>Pay with ABA PayWay. Cancel anytime.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURED -->
+    <section class="section wrap" id="featured">
+      <div class="sec-head"><p>Comic</p><h2>Featured Series</h2></div>
+      <div class="book-grid" id="featuredGrid"></div>
+    </section>
+
+    <!-- NEW + TRENDING -->
+    <section class="section wrap" id="new">
+      <div class="two-col">
+        <div class="panel">
+          <div class="sec-row" style="margin-bottom:6px"><h3 style="margin:0">New Episodes</h3><a class="more" href="library.html">My library ›</a></div>
+          <ul class="list" id="newList"></ul>
+        </div>
+        <div class="panel">
+          <h3>Trending This Week</h3>
+          <ol class="list" id="trendList"></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALL SERIES -->
+    <section class="section wrap" id="all">
+      <div class="sec-row">
+        <div><p>Browse</p><h2>All Series</h2></div>
+        <div class="chips" id="genreChips" role="group" aria-label="Filter by genre"></div>
+      </div>
+      <div class="book-grid wide" id="allGrid"></div>
+    </section>
+
+    <!-- PREMIUM BANNER -->
+    <section class="section wrap">
+      <div class="panel" style="background:var(--red);color:#fff;box-shadow:6px 8px 0 var(--ink);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px;padding:28px">
+        <div>
+          <p style="margin:0;font-family:var(--comic);font-size:22px;letter-spacing:1px;color:var(--yellow);text-shadow:2px 2px 0 #111">INKLINE PREMIUM</p>
+          <h2 style="margin:4px 0 0;font-family:var(--display);font-weight:700;font-size:clamp(32px,5vw,46px);line-height:1">Read every new episode a week early.</h2>
+          <p style="margin:8px 0 0;font-size:14px">From $4.99 a month, or $49.99 a year.</p>
+        </div>
+        <a href="subscribe.html" class="btn btn-lg btn-ghost" style="box-shadow:4px 5px 0 #111">See plans</a>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+</div>
+
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  var I = Inkline;
+  I.mountShell('home');
+
+  // hero cover fan: five covers that link to their series
+  var fanOrder = ['steel-vanguard', 'night-owl', 'iron-echo', 'red-squad', 'nova-nexus'];
+  document.getElementById('fan').innerHTML = fanOrder.map(function (slug, i) {
+    var s = I.bySlug(slug);
+    return '<a class="cv c' + (i + 1) + '" href="series.html?s=' + slug + '" style="background:' + s.bg + '" aria-label="' + I.esc(s.title) + '"><span style="color:' + s.ink + ';text-shadow:2px 2px 0 ' + I.inkShadow(s) + '">' + I.esc(s.cover) + '</span></a>';
+  }).join('');
+
+  var genre = 'All';
+  var genres = ['All'];
+  I.SERIES.forEach(function (s) { s.genres.forEach(function (g) { if (genres.indexOf(g) < 0) genres.push(g); }); });
+
+  function render() {
+    document.getElementById('featuredGrid').innerHTML = (I.state.admin ? I.state.admin.featured : ['super-knight', 'red-squad', 'nova-nexus', 'steel-vanguard']).map(function (slug) { return I.seriesCard(I.bySlug(slug)); }).join('');
+
+    // newest episodes across all series
+    var all = [];
+    I.SERIES.forEach(function (s) { I.episodes(s).forEach(function (e) { all.push(e); }); });
+    all.sort(function (a, b) { return b.publishedAt - a.publishedAt; });
+    document.getElementById('newList').innerHTML = all.slice(0, 6).map(function (e) {
+      var s = I.bySlug(e.series);
+      return '<li><a class="row" href="read.html?s=' + s.slug + '&e=' + e.number + '"><span class="thumb" style="' + I.thumbStyle(s, e.number) + '"><b>' + e.number + '</b></span><span class="row-body"><p class="row-title">' + I.esc(s.title) + '</p><p class="row-sub">Ep. ' + e.number + ': ' + I.esc(e.title) + ' · ' + I.ago(e.publishedAt) + '</p></span>' + I.epPill(e) + '</a></li>';
+    }).join('');
+
+    var trending = ['nova-nexus', 'super-knight', 'red-squad', 'night-owl', 'iron-echo'];
+    document.getElementById('trendList').innerHTML = trending.map(function (slug, i) {
+      var s = I.bySlug(slug);
+      return '<li><a class="row" href="series.html?s=' + slug + '"><span class="rank">' + (i + 1) + '</span><span class="thumb" style="width:44px;height:44px;' + I.thumbStyle(s, i + 2) + '"></span><span class="row-body"><p class="row-title">' + I.esc(s.title) + '</p><p class="row-sub">' + I.esc(s.genres[0]) + ' · ' + s.views + ' views</p></span></a></li>';
+    }).join('');
+
+    document.getElementById('genreChips').innerHTML = genres.map(function (g) {
+      return '<button type="button" class="chip" data-genre="' + g + '" aria-pressed="' + (g === genre) + '">' + g + '</button>';
+    }).join('');
+    document.getElementById('allGrid').innerHTML = I.SERIES.filter(function (s) { return genre === 'All' || s.genres.indexOf(genre) > -1; }).map(I.seriesCard).join('');
+  }
+
+  document.getElementById('genreChips').addEventListener('click', function (e) {
+    var c = e.target.closest('[data-genre]');
+    if (!c) return;
+    genre = c.dataset.genre;
+    render();
+    document.querySelector('[data-genre="' + genre + '"]').focus();
+  });
+
+  I.onChange(render);
+  render();
+})();
+</script>
+</body>
+</html>

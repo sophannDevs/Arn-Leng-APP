@@ -1,0 +1,28 @@
+{
+  "name": "@inkline/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "enqueue:example": "tsx src/scripts/enqueue-example.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@inkline/shared": "workspace:*",
+    "bullmq": "5.81.5",
+    "ioredis": "5.11.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@inkline/config": "workspace:*",
+    "@types/node": "24.19.2",
+    "eslint": "9.39.5",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

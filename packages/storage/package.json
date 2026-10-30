@@ -1,0 +1,19 @@
+{
+  "name": "@inkline/storage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@inkline/config": "workspace:*",
+    "@types/node": "24.19.2",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3"
+  }
+}

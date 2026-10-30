@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Library · Inkline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<div class="page">
+  <div id="site-header"></div>
+
+  <main class="wrap">
+    <section class="section" style="padding-top:36px">
+      <div class="sec-row"><div><p>Comic</p><h1 style="margin:0;font-family:var(--display);font-weight:600;font-size:44px;line-height:1">My Library</h1></div></div>
+      <div class="tabs" role="group" aria-label="Library sections">
+        <button type="button" class="chip" data-tab="following" aria-pressed="true">Following</button>
+        <button type="button" class="chip" data-tab="continue" aria-pressed="false">Continue reading</button>
+        <button type="button" class="chip" data-tab="history" aria-pressed="false">History</button>
+      </div>
+      <div id="view"></div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+</div>
+
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  var I = Inkline;
+  I.mountShell('library');
+  var tab = (location.hash || '').slice(1);
+  if (['following', 'continue', 'history'].indexOf(tab) < 0) tab = 'following';
+
+  function empty(msg, cta) {
+    return '<div class="empty-card"><svg width="44" height="44" viewBox="0 0 24 24" fill="#D91E1E" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17.2a.6.6 0 0 1-1 .45L12 17l-6 4.65a.6.6 0 0 1-1-.45V4a1 1 0 0 1 1-1z"/></svg><p>' + msg + '</p>' + cta + '</div>';
+  }
+  function row(slug, number, sub) {
+    var s = I.bySlug(slug), e = I.episodes(s)[number - 1];
+    return '<li><a class="row" href="read.html?s=' + slug + '&e=' + number + '"><span class="thumb" style="width:64px;height:52px;' + I.thumbStyle(s, number) + '"><b>' + number + '</b></span><span class="row-body"><p class="row-title">' + I.esc(s.title) + '</p><p class="row-sub">Ep. ' + number + ': ' + I.esc(e.title) + ' · ' + sub + '</p></span>' + I.ICON.arrow + '</a></li>';
+  }
+
+  function render() {
+    document.querySelectorAll('[data-tab]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.tab === tab); });
+    var v = document.getElementById('view'), st = I.state;
+    if (tab === 'following') {
+      v.innerHTML = st.follows.length
+        ? '<div class="book-grid wide" id="followGrid">' + st.follows.map(function (slug) { return I.seriesCard(I.bySlug(slug)); }).join('') + '</div>'
+        : empty('You\'re not following any series yet. Tap + on a cover to follow it.', '<a class="btn btn-sm" href="index.html#all">Browse series</a>');
+    } else if (tab === 'continue') {
+      var items = Object.keys(st.progress).map(function (k) { return { slug: k, p: st.progress[k] }; }).sort(function (a, b) { return b.p.at - a.p.at; });
+      v.innerHTML = items.length
+        ? '<div class="panel"><ul class="list">' + items.map(function (it) { return row(it.slug, it.p.number, 'read ' + I.ago(it.p.at).toLowerCase()); }).join('') + '</ul></div>'
+        : empty('Nothing in progress. Open any episode and we\'ll keep your place.', '<a class="btn btn-sm" href="index.html#new">See new episodes</a>');
+    } else {
+      v.innerHTML = st.history.length
+        ? '<div class="panel"><ul class="list">' + st.history.map(function (h) { return row(h.series, h.number, I.ago(h.at).toLowerCase()); }).join('') + '</ul>' +
+          '<button type="button" class="btn btn-ghost btn-block" id="clearHistory" style="margin-top:14px">Clear history</button></div>'
+        : empty('Episodes you read will show up here.', '<a class="btn btn-sm" href="index.html#all">Start reading</a>');
+    }
+  }
+
+  document.querySelector('.tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tab]');
+    if (!b) return;
+    tab = b.dataset.tab;
+    history.replaceState(null, '', '#' + tab);
+    render();
+  });
+  document.getElementById('view').addEventListener('click', function (e) {
+    if (e.target.id !== 'clearHistory') return;
+    I.state.history = [];
+    I.state.progress = {};
+    I.changed();
+    I.toast('History cleared');
+  });
+
+  I.onChange(render);
+  render();
+})();
+</script>
+</body>
+</html>

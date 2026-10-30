@@ -1,0 +1,76 @@
+# Local development services: PostgreSQL, Redis and MinIO (S3-compatible, stands in for Cloudflare R2).
+# Start with `pnpm services:up` (or `docker compose up -d --wait`). Credentials match .env.example.
+name: inkline
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: inkline
+      POSTGRES_PASSWORD: inkline
+      POSTGRES_DB: inkline
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U inkline -d inkline']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # MinIO stopped publishing official Docker images in 2025; Chainguard builds the same
+  # MinIO server from source (only the `latest` tag is free). It also ships `mc` and bash.
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: inkline
+      MINIO_ROOT_PASSWORD: inkline-secret
+      MC_HOST_local: http://inkline:inkline-secret@localhost:9000
+    ports:
+      - '9000:9000' # S3 API
+      - '9001:9001' # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # One-shot: creates the private (episode pages) and public (covers, avatars) buckets.
+  minio-init:
+    image: cgr.dev/chainguard/minio:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MC_HOST_local: http://inkline:inkline-secret@minio:9000
+    entrypoint: ['bash', '-c']
+    command:
+      - |
+        set -e
+        mc mb --ignore-existing local/inkline-private local/inkline-public
+        mc anonymous set none local/inkline-private
+        mc anonymous set download local/inkline-public
+        echo "Buckets ready: inkline-private (private), inkline-public (public read)"
+    restart: 'no'
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account · Inkline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<div class="page">
+  <div id="site-header"></div>
+  <main class="wrap" id="content"></main>
+  <div id="site-footer"></div>
+</div>
+
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  var I = Inkline, esc = I.esc;
+  I.mountShell('account');
+  var main = document.getElementById('content');
+  var TABS = [
+    ['profile', 'Profile'], ['security', 'Security'], ['subscription', 'Subscription'],
+    ['notifications', 'Notifications'], ['creator', 'Creator'], ['demo', 'Demo role']
+  ];
+  var COLORS = ['#D91E1E', '#1c3faa', '#1e7a4a', '#7b2cbf', '#f08a00', '#111111'];
+  var tab = location.hash.slice(1);
+  var sessions = [
+    { id: 'this', device: 'This browser', where: 'Phnom Penh · now', current: true },
+    { id: 'ios', device: 'Safari on iPhone', where: 'Phnom Penh · 2 hours ago' },
+    { id: 'win', device: 'Chrome on Windows', where: 'Siem Reap · 3 days ago' }
+  ];
+  var setup2fa = false;
+
+  function shell() {
+    if (!I.gate(main, 'user')) return;
+    if (!TABS.some(function (t) { return t[0] === tab; })) tab = 'profile';
+    main.innerHTML = '<div class="dash"><nav class="side" aria-label="Account sections"><p class="side-title">Account</p>' +
+      TABS.map(function (t) { return '<button type="button" data-tab="' + t[0] + '" aria-current="' + (t[0] === tab) + '">' + t[1] + '</button>'; }).join('') +
+      '</nav><div class="stack" id="section"></div></div>';
+    section();
+  }
+
+  function section() {
+    var u = I.state.user, el = document.getElementById('section');
+    document.querySelectorAll('[data-tab]').forEach(function (b) { b.setAttribute('aria-current', b.dataset.tab === tab); });
+
+    if (tab === 'profile') {
+      el.innerHTML = '<div class="panel"><div class="panel-head"><div><h2>Profile</h2><p>How you appear in comments.</p></div></div>' +
+        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;margin-bottom:18px"><span class="avatar lg" id="avPreview" style="background:' + u.color + '">' + esc(I.initials(u.name)) + '</span>' +
+        '<fieldset style="border:0;margin:0;padding:0"><legend class="hint" style="margin-bottom:8px;font-weight:600">Avatar color</legend><div class="check-chips">' +
+        COLORS.map(function (c) { return '<label style="padding:0 10px"><input type="radio" name="color" value="' + c + '"' + (c === u.color ? ' checked' : '') + '><span aria-hidden="true" style="width:18px;height:18px;border-radius:50%;border:2px solid #111;background:' + c + '"></span><span class="sr-only">' + c + '</span></label>'; }).join('') +
+        '</div></fieldset></div>' +
+        '<form id="profileForm" novalidate><div class="form-grid">' +
+          '<div class="field"><label for="pName">Display name</label><input id="pName" value="' + esc(u.name) + '" maxlength="40" autocomplete="name"></div>' +
+          '<div class="field"><label for="pEmail">Email</label><input id="pEmail" type="email" value="' + esc(u.email) + '" autocomplete="email"><p class="hint">We\'ll send a link to confirm a new address.</p></div>' +
+          '<div class="field"><label for="pLang">Language</label><select id="pLang"><option value="en" selected>English</option></select><p class="hint">More languages are planned.</p></div>' +
+        '</div><div class="cta-row"><button type="submit" class="btn btn-sm">Save changes</button></div></form></div>';
+      el.querySelectorAll('[name=color]').forEach(function (r) {
+        r.addEventListener('change', function () { document.getElementById('avPreview').style.background = r.value; });
+      });
+      el.querySelector('#pName').addEventListener('input', function (e) { document.getElementById('avPreview').textContent = I.initials(e.target.value || '?'); });
+      el.querySelector('#profileForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = el.querySelector('#pName'), email = el.querySelector('#pEmail');
+        if (!name.value.trim()) { name.focus(); I.toast('Name can\'t be empty'); return; }
+        if (!email.value || !email.checkValidity()) { email.focus(); I.toast('Enter a valid email'); return; }
+        var emailChanged = email.value !== u.email;
+        u.name = name.value.trim(); u.email = email.value;
+        u.color = el.querySelector('[name=color]:checked').value;
+        I.changed();
+        I.toast(emailChanged ? 'Saved. Check your inbox to confirm the new email (demo).' : 'Profile saved');
+      });
+    }
+
+    if (tab === 'security') {
+      var twoFA = u.twoFA;
+      el.innerHTML =
+        '<div class="panel"><div class="panel-head"><div><h2>Password</h2><p>At least 8 characters.</p></div></div>' +
+        '<form id="pwForm" novalidate><div class="form-grid">' +
+          '<div class="field"><label for="pwOld">Current password</label><input id="pwOld" type="password" autocomplete="current-password"></div>' +
+          '<div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" autocomplete="new-password"></div>' +
+          '<div class="field"><label for="pwNew2">Confirm new password</label><input id="pwNew2" type="password" autocomplete="new-password"></div>' +
+        '</div><p class="err" id="pwErr" hidden></p><div class="cta-row"><button type="submit" class="btn btn-sm">Update password</button></div></form></div>' +
+
+        '<div class="panel"><div class="panel-head"><div><h2>Two-factor authentication</h2><p>' + (u.role === 'admin' ? 'Required for admins.' : u.role === 'creator' ? 'Strongly recommended for creators.' : 'Adds a code from your authenticator app at login.') + '</p></div>' +
+        '<span class="pill ' + (twoFA ? 'free' : 'draft') + '">' + (twoFA ? 'ON' : 'OFF') + '</span></div>' +
+        (twoFA
+          ? '<p style="margin:0 0 12px;font-size:13px">Your account asks for a 6-digit code at every new login.</p><div class="cta-row"><button type="button" class="btn btn-sm btn-ghost" id="codesBtn">Show recovery codes</button><button type="button" class="btn btn-sm btn-danger" id="off2fa">Turn off 2FA</button></div>'
+          : setup2fa
+            ? '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center"><div class="qr" role="img" aria-label="QR code placeholder"></div><div style="flex:1 1 240px;display:flex;flex-direction:column;gap:10px">' +
+              '<p style="margin:0;font-size:13px">Scan the code with an authenticator app, or enter this key:</p><div class="code-box">JBSW Y3DP EHPK 3PXP</div>' +
+              '<form id="verifyForm" novalidate style="flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:10px"><div class="field" style="flex:1 1 160px"><label for="otp">6-digit code</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\\d{6}"></div><button type="submit" class="btn btn-sm">Verify</button><button type="button" class="btn btn-sm btn-ghost" id="cancel2fa">Cancel</button></form></div></div>'
+            : '<button type="button" class="btn btn-sm" id="start2fa">Set up 2FA</button>') +
+        '</div>' +
+
+        '<div class="panel"><div class="panel-head"><div><h2>Where you\'re logged in</h2><p>We email you when a new device logs in.</p></div>' +
+        (sessions.length > 1 ? '<button type="button" class="btn btn-sm btn-ghost" id="logoutAll">Log out everywhere else</button>' : '') + '</div>' +
+        '<ul class="list">' + sessions.map(function (s) {
+          return '<li class="row"><span class="thumb" style="width:44px;height:44px;background:var(--paper);align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="#111" aria-hidden="true">' + (s.id === 'ios' ? '<rect x="7" y="2" width="10" height="20" rx="2"/>' : '<path d="M3 5h18v11H3zM8 19h8v2H8z"/>') + '</svg></span><span class="row-body"><p class="row-title">' + s.device + '</p><p class="row-sub">' + s.where + '</p></span>' +
+            (s.current ? '<span class="pill free">CURRENT</span>' : '<button type="button" class="mini warn" data-revoke="' + s.id + '">Log out</button>') + '</li>';
+        }).join('') + '</ul></div>';
+
+      el.querySelector('#pwForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var o = el.querySelector('#pwOld').value, n = el.querySelector('#pwNew').value, n2 = el.querySelector('#pwNew2').value, err = el.querySelector('#pwErr');
+        var msg = !o ? 'Enter your current password.' : n.length < 8 ? 'New password needs at least 8 characters.' : n !== n2 ? 'The new passwords don\'t match.' : n === o ? 'Pick a password you haven\'t used here.' : '';
+        err.hidden = !msg; err.textContent = msg;
+        if (msg) return;
+        e.target.reset();
+        I.toast('Password updated. We emailed you a confirmation (demo).');
+      });
+      var start = el.querySelector('#start2fa');
+      if (start) start.addEventListener('click', function () { setup2fa = true; section(); el.querySelector('#otp').focus(); });
+      var cancel = el.querySelector('#cancel2fa');
+      if (cancel) cancel.addEventListener('click', function () { setup2fa = false; section(); });
+      var vf = el.querySelector('#verifyForm');
+      if (vf) vf.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var v = el.querySelector('#otp').value.trim();
+        if (!/^\d{6}$/.test(v)) { I.toast('Enter the 6 digits from your app'); return; }
+        u.twoFA = true; setup2fa = false;
+        I.changed(); section(); showCodes();
+      });
+      var codes = el.querySelector('#codesBtn');
+      if (codes) codes.addEventListener('click', showCodes);
+      var off = el.querySelector('#off2fa');
+      if (off) off.addEventListener('click', function () {
+        if (u.role === 'admin') { I.toast('Admins can\'t turn off 2FA'); return; }
+        I.confirmAction('Turn off 2FA?', 'Your account will only be protected by your password.', 'Turn off', function () { u.twoFA = false; I.changed(); section(); I.toast('2FA is off'); });
+      });
+      el.querySelectorAll('[data-revoke]').forEach(function (b) {
+        b.addEventListener('click', function () { sessions = sessions.filter(function (s) { return s.id !== b.dataset.revoke; }); section(); I.toast('Logged out that device'); });
+      });
+      var all = el.querySelector('#logoutAll');
+      if (all) all.addEventListener('click', function () {
+        I.confirmAction('Log out everywhere else?', 'Every other device will need to log in again.', 'Log them out', function () {
+          sessions = sessions.filter(function (s) { return s.current; }); section(); I.toast('Other devices logged out');
+        });
+      });
+    }
+
+    if (tab === 'subscription') {
+      var sub = I.state.sub, live = I.entitled();
+      el.innerHTML = '<div class="panel"><div class="panel-head"><div><h2>Subscription</h2><p>Billing runs through ABA PayWay.</p></div><span class="pill ' + (live ? 'free' : 'draft') + '">' + (live ? 'PREMIUM' : 'FREE PLAN') + '</span></div>' +
+        (sub
+          ? '<div class="manage"><dl><div><dt>Plan</dt><dd>' + (sub.plan === 'yearly' ? 'Yearly · $49.99/year' : 'Monthly · $4.99/month') + '</dd></div><div><dt>' + (sub.status === 'canceled' ? 'Access until' : 'Next billing date') + '</dt><dd>' + I.date(sub.periodEnd) + '</dd></div><div><dt>Payments</dt><dd>' + sub.payments.length + '</dd></div></dl></div>' +
+            '<div class="cta-row"><a class="btn btn-sm" href="subscribe.html">Manage plan</a><button type="button" class="btn btn-sm btn-ghost" id="updPay">Update payment method</button></div>'
+          : '<p style="margin:0 0 14px;font-size:14px">You\'re reading on the free plan: episodes 1–3 of every series, and everything older than 7 days.</p><a class="btn btn-sm" href="subscribe.html">See Premium plans</a>') +
+        '</div>';
+      var up = el.querySelector('#updPay');
+      if (up) up.addEventListener('click', function () {
+        var body = I.openDialog('Update payment method', '<p style="margin:0;font-size:14px;line-height:1.6">You\'ll link a new ABA account or card through PayWay. It replaces the saved one for future renewals.</p><button type="button" class="btn btn-block" data-link>Link with ABA PayWay</button><p class="note">Demo only: nothing is charged or saved.</p>', { focus: '[data-link]' });
+        body.querySelector('[data-link]').addEventListener('click', function () { I.closeDialog(); I.toast('Payment method updated (demo)'); });
+      });
+    }
+
+    if (tab === 'notifications') {
+      var nt = u.notify;
+      var row = function (k, t, d) { return '<label class="setting" for="n-' + k + '"><span style="margin:0"><b>' + t + '</b><span>' + d + '</span></span><input type="checkbox" class="toggle" id="n-' + k + '" data-n="' + k + '"' + (nt[k] ? ' checked' : '') + '></label>'; };
+      el.innerHTML = '<div class="panel"><div class="panel-head"><div><h2>Notifications</h2><p>In-app alerts are always on. Choose which ones also come by email.</p></div></div>' +
+        row('episodes', 'New episodes', 'Email me when a series I follow publishes.') +
+        row('replies', 'Comment replies', 'Email me when someone replies to my comment.') +
+        row('product', 'Inkline news', 'Occasional updates about features and events.') + '</div>';
+      el.querySelectorAll('[data-n]').forEach(function (c) {
+        c.addEventListener('change', function () { nt[c.dataset.n] = c.checked; I.changed(); I.toast('Saved'); });
+      });
+    }
+
+    if (tab === 'creator') {
+      var cp = u.creator;
+      el.innerHTML = '<div class="panel"><div class="panel-head"><div><h2>' + (cp ? 'Creator profile' : 'Become a creator') + '</h2><p>' + (cp ? 'Shown on your series pages.' : 'Publish your own series. Your pen name appears on every episode.') + '</p></div>' +
+        (cp ? '<a class="btn btn-sm" href="studio.html">Open studio</a>' : '') + '</div>' +
+        '<form id="creatorForm" novalidate><div class="field"><label for="pen">Pen name</label><input id="pen" maxlength="40" value="' + esc(cp ? cp.pen : '') + '" placeholder="The name readers will see"></div>' +
+        '<div class="field"><label for="bio">Short bio</label><textarea id="bio" maxlength="280" placeholder="A line or two about you and your work">' + esc(cp ? cp.bio : '') + '</textarea><p class="hint"><span id="bioCount">' + (cp ? cp.bio.length : 0) + '</span>/280</p></div>' +
+        '<button type="submit" class="btn btn-sm" style="align-self:flex-start">' + (cp ? 'Save profile' : 'Create creator profile') + '</button></form></div>';
+      el.querySelector('#bio').addEventListener('input', function (e) { el.querySelector('#bioCount').textContent = e.target.value.length; });
+      el.querySelector('#creatorForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var pen = el.querySelector('#pen').value.trim(), bio = el.querySelector('#bio').value.trim();
+        if (pen.length < 2) { el.querySelector('#pen').focus(); I.toast('Pick a pen name (2+ characters)'); return; }
+        var first = !u.creator;
+        u.creator = { pen: pen, bio: bio };
+        if (u.role === 'reader') u.role = 'creator';
+        I.changed(); section();
+        I.toast(first ? 'You\'re a creator now. Your studio is ready.' : 'Creator profile saved');
+      });
+    }
+
+    if (tab === 'demo') {
+      el.innerHTML = '<div class="panel"><div class="panel-head"><div><h2>Demo role</h2><p>Prototype only: switch roles to preview the studio and admin pages. The real site sets roles on the server.</p></div></div>' +
+        '<fieldset style="border:0;margin:0;padding:0"><legend class="sr-only">Role</legend><div class="check-chips">' +
+        ['reader', 'creator', 'admin'].map(function (r) { return '<label><input type="radio" name="role" value="' + r + '"' + (u.role === r ? ' checked' : '') + '>' + r[0].toUpperCase() + r.slice(1) + '</label>'; }).join('') +
+        '</div></fieldset><p class="note-line" style="margin-top:12px">Admins also need 2FA turned on (Security tab).</p>' +
+        '<div class="cta-row" style="margin-top:14px"><a class="btn btn-sm btn-ghost" href="studio.html">Open studio</a><a class="btn btn-sm btn-ghost" href="admin.html">Open admin</a></div></div>';
+      el.querySelectorAll('[name=role]').forEach(function (r) {
+        r.addEventListener('change', function () {
+          u.role = r.value;
+          if (r.value !== 'reader' && !u.creator) u.creator = { pen: u.name, bio: '' };
+          I.changed(); I.toast('Viewing as ' + r.value);
+        });
+      });
+    }
+  }
+
+  function showCodes() {
+    var codes = ['7KQ2-MX9P', 'R4TD-8WLN', 'C3VH-2YJA', 'P9EF-5KQS', 'N6BW-T1ZR', 'H8GX-4DMC'];
+    I.openDialog('Recovery codes', '<p style="margin:0;font-size:13px;line-height:1.6">Each code works once if you lose your phone. Store them somewhere safe.</p><div class="code-box" style="text-align:left;line-height:2">' + codes.join('<br>') + '</div><button type="button" class="btn btn-block" data-close>I saved them</button>', { focus: '[data-close]' });
+  }
+
+  main.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tab]');
+    if (!t) return;
+    tab = t.dataset.tab; setup2fa = false;
+    history.replaceState(null, '', '#' + tab);
+    section();
+    t.focus();
+  });
+  window.addEventListener('hashchange', function () { tab = location.hash.slice(1); shell(); });
+
+  // re-draw only when signing in or out, so typed form input isn't wiped
+  var signedIn = !!I.state.user;
+  I.onChange(function () { if (!!I.state.user !== signedIn) { signedIn = !!I.state.user; shell(); } });
+  shell();
+})();
+</script>
+</body>
+</html>

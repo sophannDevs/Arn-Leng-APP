@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reader · Inkline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="reader-body">
+
+<div class="rbar rbar-top">
+  <div class="rbar-inner">
+    <a class="icon-btn" id="backLink" href="series.html" aria-label="Back to series" style="color:#fff">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </a>
+    <div class="rbar-title"><b id="barTitle"></b><span id="barSub"></span></div>
+    <button type="button" class="icon-btn" id="openDrawer" aria-label="Episode list" aria-expanded="false" aria-controls="drawer" style="color:#fff">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+  </div>
+  <div class="progress" id="progress"></div>
+</div>
+
+<main id="main">
+  <div class="strip" id="strip"></div>
+</main>
+
+<div class="rbar rbar-bottom">
+  <div class="rbar-inner">
+    <a id="prevLink" href="#">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Prev
+    </a>
+    <button type="button" class="nav-ep" id="likeBar" aria-pressed="false">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-8-5.2-8-11.2A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.8C20 15.8 12 21 12 21z"/></svg><span>Like</span>
+    </button>
+    <a id="nextLink" href="#">Next
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" aria-label="Episodes" aria-hidden="true">
+  <div class="drawer-head"><h2>Episodes</h2><button type="button" class="close" id="closeDrawer" aria-label="Close episode list"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19"/></svg></button></div>
+  <ul class="list ep-list" id="drawerList"></ul>
+</aside>
+
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  var I = Inkline;
+  I.mountShell('read');
+  var s = I.bySlug(I.param('s')) || I.SERIES[0];
+  var eps = I.episodes(s);
+  var n = Math.min(Math.max(parseInt(I.param('e'), 10) || 1, 1), eps.length);
+  var ep = eps[n - 1];
+  var here = 'read.html?s=' + s.slug + '&e=' + n;
+
+  document.title = s.title + ' Ep. ' + n + ' · Inkline';
+  document.getElementById('backLink').href = 'series.html?s=' + s.slug;
+  document.getElementById('barTitle').textContent = s.title;
+  document.getElementById('barSub').textContent = 'Ep. ' + n + ': ' + ep.title;
+  var prev = document.getElementById('prevLink'), next = document.getElementById('nextLink');
+  prev.href = n > 1 ? 'read.html?s=' + s.slug + '&e=' + (n - 1) : '#';
+  next.href = n < eps.length ? 'read.html?s=' + s.slug + '&e=' + (n + 1) : '#';
+  if (n === 1) prev.setAttribute('aria-disabled', 'true');
+  if (n === eps.length) next.setAttribute('aria-disabled', 'true');
+
+  /* ---------- placeholder artwork, generated per episode ---------- */
+  var seed = (I.SERIES.indexOf(s) + 1) * 97 + n * 13;
+  function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+  function pick(a) { return a[Math.floor(rnd() * a.length)]; }
+  var LINES = ['We\'re out of time.', 'Did you hear that?', 'Stay behind me.', 'This wasn\'t the plan.', 'Then we make a new one.', 'Look up.', 'It\'s starting.', 'Not tonight.', 'You came back.', 'Who sent you?', 'Run!', 'Trust me on this.', 'Something\'s wrong.', 'Hold the line!'];
+  var SFX = ['WHOOSH!', 'KRAK!', 'BOOM!', 'FWIP', 'THUD!', 'SKREE', 'ZAP!', 'BAM!'];
+  var CAPS = ['Episode ' + n, 'Meanwhile…', 'Later that night', 'Ten minutes earlier', 'Across the city', 'Then…'];
+
+  function bg(i) {
+    var a = s.base[0], b = s.base[1];
+    var kind = i % 3;
+    if (kind === 0) return 'background:repeating-conic-gradient(from 0deg at ' + Math.round(20 + rnd() * 60) + '% ' + Math.round(30 + rnd() * 50) + '%,rgba(255,255,255,.16) 0 7deg,transparent 7deg 14deg),linear-gradient(' + Math.round(rnd() * 360) + 'deg,' + a + ',' + b + ')';
+    if (kind === 1) return 'background:radial-gradient(circle at ' + Math.round(rnd() * 100) + '% 30%,#fff7 0 8%,transparent 30%),linear-gradient(180deg,#F4E9D2,' + a + ' 140%)';
+    return 'background:radial-gradient(#0002 1.4px,transparent 1.6px) 0 0/9px 9px,linear-gradient(160deg,#EFE6D4,#D9CFBD)';
+  }
+  function panel(i, h) {
+    var html = '<div class="cpanel" style="min-height:' + h + 'px;' + bg(i) + '">';
+    if (rnd() > .35) {
+      var w = Math.round(22 + rnd() * 18);
+      html += '<div class="silhouette" style="left:' + Math.round(8 + rnd() * 50) + '%;width:' + w + '%;height:' + Math.round(h * (.35 + rnd() * .2)) + 'px"></div>';
+    }
+    var r = rnd();
+    if (r < .3) html += '<span class="sfx" style="right:6%;top:12%;font-size:' + Math.round(48 + rnd() * 30) + 'px;transform:rotate(' + Math.round(-12 + rnd() * 8) + 'deg)">' + pick(SFX) + '</span>';
+    else html += '<span class="bubble" style="left:' + Math.round(6 + rnd() * 30) + '%;top:' + Math.round(8 + rnd() * 14) + '%">' + I.esc(pick(LINES)) + '</span>';
+    if (rnd() > .65) html += '<span class="caption-box" style="left:10px;top:10px">' + pick(CAPS) + '</span>';
+    return html + '</div>';
+  }
+  function artwork() {
+    var out = '<div class="chunk"><div class="panelrow"><div class="cpanel" style="min-height:420px;' + bg(0) + ';display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;text-align:center">' +
+      '<span style="font-family:var(--comic);font-size:clamp(44px,10vw,76px);line-height:.9;color:' + s.ink + ';text-shadow:4px 4px 0 ' + I.inkShadow(s) + ';white-space:pre-line">' + I.esc(s.cover) + '</span>' +
+      '<span class="caption-box" style="position:static">Episode ' + n + ': ' + I.esc(ep.title) + '</span></div></div></div>';
+    var layouts = ['1', '1fr 1fr', '2fr 1fr', '1', '1fr 2fr', '1fr 1fr', '1'];
+    for (var c = 0; c < 6; c++) {
+      var cols = layouts[(c + n) % layouts.length];
+      var count = cols === '1' ? 1 : 2;
+      var h = count === 1 ? Math.round(320 + rnd() * 220) : Math.round(260 + rnd() * 140);
+      out += '<div class="chunk"><div class="panelrow" style="grid-template-columns:' + (cols === '1' ? '1fr' : cols) + '">';
+      for (var p = 0; p < count; p++) out += panel(c * 2 + p + 1, h);
+      out += '</div>' + (c % 2 ? '<div style="height:' + Math.round(40 + rnd() * 60) + 'px"></div>' : '') + '</div>';
+    }
+    return out;
+  }
+
+  /* ---------- page ---------- */
+  var strip = document.getElementById('strip');
+  function render() {
+    var a = I.access(ep);
+    if (!a.ok) {
+      document.body.classList.remove('bars-hidden');
+      var early = a.why === 'early';
+      strip.outerHTML = '<div class="strip" id="strip" style="padding:0"><div class="locked"><div class="lock-card">' +
+        '<div class="lock-ico">' + I.lockSvg(32) + '</div>' +
+        '<h1>' + (early ? 'Early access episode' : 'Premium episode') + '</h1>' +
+        '<p>' + (early
+          ? 'Ep. ' + n + ' becomes free in <b>' + a.freeIn + (a.freeIn === 1 ? ' day' : ' days') + '</b>. Premium subscribers can read it now.'
+          : 'The creator made this episode subscriber-only. Subscribe to read it and every new release a week early.') + '</p>' +
+        '<a class="btn btn-lg" href="subscribe.html?return=' + encodeURIComponent(here) + '">Subscribe from $4.99</a>' +
+        (I.state.user ? '' : '<button type="button" class="switch" data-open="login">Already subscribed? Log in</button>') +
+        '<a class="more" href="series.html?s=' + s.slug + '">Back to all episodes</a>' +
+        '</div></div></div>';
+      strip = document.getElementById('strip');
+      document.getElementById('likeBar').hidden = true;
+      return;
+    }
+    document.getElementById('likeBar').hidden = false;
+    var nextEp = eps[n], nextOk = nextEp && I.access(nextEp).ok;
+    strip.innerHTML = artwork() +
+      '<div class="end-card">' +
+        '<p style="margin:0;font-family:var(--comic);font-size:20px;color:var(--red);letter-spacing:1px">END OF EPISODE ' + n + '</p>' +
+        '<h2>' + I.esc(s.title) + '</h2>' +
+        '<div class="end-actions">' +
+          '<button type="button" class="btn btn-sm btn-ghost like-btn" data-like aria-pressed="false"></button>' +
+          '<button type="button" class="btn btn-sm btn-ghost" data-follow-end aria-pressed="false"></button>' +
+        '</div>' +
+        (nextEp
+          ? '<a class="btn btn-lg" href="read.html?s=' + s.slug + '&e=' + (n + 1) + '">' + (nextOk ? 'Next: Ep. ' + (n + 1) : I.lockSvg(16) + ' Ep. ' + (n + 1) + (I.access(nextEp).why === 'early' ? ' · free in ' + I.access(nextEp).freeIn + 'd' : ' · Premium')) + '</a>'
+          : '<p class="note-line">You\'re all caught up. Follow to hear about the next episode.</p>') +
+        '<a class="more" href="series.html?s=' + s.slug + '">All episodes ›</a>' +
+      '</div>';
+    I.saveProgress(s.slug, n, 0);
+    syncButtons();
+  }
+
+  function syncButtons() {
+    var liked = I.state.likes.indexOf(s.slug + '#' + n) > -1, following = I.isFollowing(s.slug);
+    var lb = strip.querySelector('[data-like]'), fb = strip.querySelector('[data-follow-end]'), bar = document.getElementById('likeBar');
+    if (lb) { lb.setAttribute('aria-pressed', liked); lb.textContent = liked ? '♥ Liked' : '♡ Like this episode'; }
+    if (fb) { fb.setAttribute('aria-pressed', following); fb.textContent = following ? 'Following ✓' : '+ Follow series'; }
+    bar.setAttribute('aria-pressed', liked);
+    bar.querySelector('span').textContent = liked ? 'Liked' : 'Like';
+    bar.style.color = liked ? '#FF6B6B' : '';
+  }
+  function like() { var on = I.toggleLike(s.slug, n); I.toast(on ? 'Liked Ep. ' + n : 'Like removed'); }
+  document.getElementById('likeBar').addEventListener('click', like);
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-like]')) like();
+    if (e.target.closest('[data-follow-end]')) I.toggleFollow(s.slug);
+  });
+
+  // tap the artwork to show or hide the toolbars
+  document.getElementById('main').addEventListener('click', function (e) {
+    if (e.target.closest('a,button,.end-card,.locked')) return;
+    document.body.classList.toggle('bars-hidden');
+  });
+
+  // reading progress
+  var bar = document.getElementById('progress'), saveTimer;
+  window.addEventListener('scroll', function () {
+    var max = document.documentElement.scrollHeight - innerHeight;
+    var pct = max > 0 ? Math.min(1, scrollY / max) : 0;
+    bar.style.width = (pct * 100) + '%';
+    clearTimeout(saveTimer);
+    if (I.access(ep).ok) saveTimer = setTimeout(function () { I.saveProgress(s.slug, n, Math.round(scrollY)); }, 400);
+  }, { passive: true });
+
+  // episode drawer
+  var drawer = document.getElementById('drawer'), scrim = document.getElementById('scrim'), opener = document.getElementById('openDrawer');
+  function drawerList() {
+    document.getElementById('drawerList').innerHTML = eps.slice().reverse().map(function (e) {
+      return '<li><a class="row" href="read.html?s=' + s.slug + '&e=' + e.number + '"' + (e.number === n ? ' aria-current="page"' : '') + '><span class="thumb" style="width:56px;height:44px;' + I.thumbStyle(s, e.number) + '"><b>' + e.number + '</b></span><span class="row-body"><p class="row-title">Ep. ' + e.number + ': ' + I.esc(e.title) + '</p><p class="row-sub">' + I.date(e.publishedAt) + '</p></span>' + I.epPill(e) + '</a></li>';
+    }).join('');
+  }
+  function setDrawer(open) {
+    drawer.classList.toggle('open', open);
+    drawer.setAttribute('aria-hidden', !open);
+    scrim.hidden = !open;
+    opener.setAttribute('aria-expanded', open);
+    if (open) { drawerList(); var cur = drawer.querySelector('[aria-current]'); (cur || document.getElementById('closeDrawer')).focus(); }
+    else opener.focus();
+  }
+  opener.addEventListener('click', function () { setDrawer(true); });
+  document.getElementById('closeDrawer').addEventListener('click', function () { setDrawer(false); });
+  scrim.addEventListener('click', function () { setDrawer(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && drawer.classList.contains('open')) setDrawer(false);
+  });
+
+  // logging in may unlock the episode (subscription), so redraw
+  var wasOk = I.access(ep).ok;
+  I.onChange(function () {
+    var ok = I.access(ep).ok;
+    if (ok !== wasOk) { wasOk = ok; strip.outerHTML = '<div class="strip" id="strip"></div>'; strip = document.getElementById('strip'); render(); }
+    else syncButtons();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

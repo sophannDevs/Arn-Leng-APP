@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
+
+# Optional native speed-ups we don't need; listed so installs don't warn about them.
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+  - '@swc/core'
+  - msgpackr-extract

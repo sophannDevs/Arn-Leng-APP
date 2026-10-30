@@ -1,0 +1,27 @@
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+dist/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# tooling
+.turbo/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# env (only .env.example is committed)
+.env
+.env.*
+!.env.example
+
+# os / editors
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/

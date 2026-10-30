@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "title": "Inkline: Webtoons and Comics",
+    "description": "Read webtoons and comics on Inkline. The first {freeEpisodes} episodes of every series are free."
+  },
+  "home": {
+    "logoLabel": "Inkline home",
+    "logoTop": "INK",
+    "logoBottom": "LINE",
+    "eyebrow": "Welcome to <brand>Inkline</brand>",
+    "titleLine1": "Read the Best",
+    "titleLine2": "Webtoons",
+    "lead": "The first {freeEpisodes} episodes of every series are free. Subscribers read new episodes {earlyAccessDays} days early.",
+    "badge": "Coming soon",
+    "status": "We're building Inkline right now. Check back soon for the first series."
+  }
+}

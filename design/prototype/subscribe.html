@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Premium · Inkline</title>
+<meta name="description" content="Inkline Premium: read new episodes 7 days early. $4.99 a month or $49.99 a year.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<div class="page">
+  <div id="site-header"></div>
+
+  <main class="wrap">
+    <section class="section" style="text-align:center;padding-top:40px">
+      <p style="margin:0;font-family:var(--comic);font-size:24px;letter-spacing:1px;color:var(--red);text-shadow:1px 1px 0 #111">INKLINE PREMIUM</p>
+      <h1 style="margin:6px 0 10px;font-family:var(--display);font-weight:700;font-size:clamp(44px,7vw,72px);line-height:.95">Read Every New Episode<br><span class="red">A Week Early</span></h1>
+      <p style="margin:0 auto;max-width:520px;font-size:14px;line-height:1.6;font-weight:500">The first 3 episodes of every series are always free. Premium unlocks everything else the moment it's published.</p>
+    </section>
+
+    <!-- MANAGE (subscribers) -->
+    <section class="section manage" id="manage" hidden aria-labelledby="manageHeading">
+      <div class="panel">
+        <div class="sec-row" style="margin-bottom:14px"><h2 id="manageHeading" style="font-size:30px">Your Subscription</h2><span class="pill" id="statusPill"></span></div>
+        <dl id="subFacts"></dl>
+        <p class="note-line" id="subNote" style="margin-bottom:14px"></p>
+        <div class="cta-row" style="margin-bottom:22px">
+          <button type="button" class="btn btn-ghost" id="cancelBtn"></button>
+          <button type="button" class="btn btn-ghost" id="switchBtn"></button>
+        </div>
+        <h3 style="font-size:20px;margin-bottom:6px">Payment history</h3>
+        <div class="table-scroll">
+          <table class="history">
+            <thead><tr><th scope="col">Date</th><th scope="col">Amount</th><th scope="col">Status</th><th scope="col">Transaction</th></tr></thead>
+            <tbody id="payRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLANS -->
+    <section class="section" id="plansSection" aria-labelledby="plansHeading">
+      <h2 id="plansHeading" class="sr-only">Plans</h2>
+      <div class="plans" id="plans"></div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" aria-labelledby="faqHeading">
+      <div class="sec-head"><p>Questions</p><h2 id="faqHeading">Good to Know</h2></div>
+      <div class="faq">
+        <details><summary>What's free without Premium?</summary><p>Episodes 1 to 3 of every series, plus every episode once it is more than 7 days old. Some creators keep a few special episodes subscriber-only.</p></details>
+        <details><summary>How do I pay?</summary><p>Checkout runs through ABA PayWay with your ABA account or card. Your plan renews automatically at the end of each period.</p></details>
+        <details><summary>Can I cancel anytime?</summary><p>Yes. Cancel from this page and you keep Premium until the end of the period you already paid for. You can resume before then with one tap.</p></details>
+        <details><summary>What if a payment fails?</summary><p>We retry on days 1, 3 and 5 and email you to update your payment method. You keep access for a 7-day grace period while we sort it out.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+</div>
+
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  var I = Inkline;
+  I.mountShell('premium');
+  var ret = I.param('return');
+  if (ret && !/^read\.html\?s=[\w-]+&e=\d+$/.test(ret)) ret = null; // only allow links back into the reader
+
+  var PERKS = ['Every early-access episode, the day it drops', 'Subscriber-only episodes from creators', 'Ad-free reading on every device', 'Supports the creators you follow'];
+  var check = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#D91E1E"/><path d="m7 12.5 3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function planBy(code) { return I.PLANS.find(function (p) { return p.code === code; }); }
+
+  function render() {
+    var sub = I.state.user && I.state.sub, active = I.entitled();
+
+    document.getElementById('plans').innerHTML = I.PLANS.map(function (p) {
+      var yearly = p.interval === 'year';
+      var current = active && sub.plan === p.code;
+      return '<article class="plan' + (yearly ? ' best' : '') + '">' +
+        (yearly ? '<span class="ribbon">SAVE 16%</span>' : '') +
+        '<h3>' + p.name.toUpperCase() + '</h3>' +
+        '<p class="price">' + I.money(p.priceMinor) + ' <small>/ ' + p.interval + '</small></p>' +
+        '<p class="note-line">' + (yearly ? 'About $4.17 a month, billed once a year.' : 'Billed every month. Cancel anytime.') + '</p>' +
+        '<ul class="checks">' + PERKS.map(function (k) { return '<li>' + check + '<span>' + k + '</span></li>'; }).join('') + '</ul>' +
+        (current
+          ? '<button type="button" class="btn btn-block btn-ghost" disabled style="opacity:.7;cursor:default">Your current plan</button>'
+          : '<button type="button" class="btn btn-block' + (yearly ? '' : ' btn-ink') + '" data-plan="' + p.code + '">' + (active ? 'Switch to ' + p.name : 'Choose ' + p.name) + '</button>') +
+      '</article>';
+    }).join('');
+
+    var manage = document.getElementById('manage');
+    manage.hidden = !sub;
+    if (!sub) return;
+    var plan = planBy(sub.plan), canceled = sub.status === 'canceled', live = I.entitled();
+    var pill = document.getElementById('statusPill');
+    pill.className = 'pill ' + (live ? (canceled ? 'soon' : 'free') : 'lock');
+    pill.textContent = live ? (canceled ? 'CANCELS ' + I.date(sub.periodEnd).toUpperCase() : 'ACTIVE') : 'EXPIRED';
+    document.getElementById('subFacts').innerHTML =
+      '<div><dt>Plan</dt><dd>' + plan.name + ' · ' + I.money(plan.priceMinor) + '/' + plan.interval + '</dd></div>' +
+      '<div><dt>' + (canceled ? 'Access until' : 'Next billing date') + '</dt><dd>' + I.date(sub.periodEnd) + '</dd></div>' +
+      '<div><dt>Member since</dt><dd>' + I.date(sub.start) + '</dd></div>' +
+      '<div><dt>Payment method</dt><dd>ABA PayWay</dd></div>';
+    document.getElementById('subNote').textContent = sub.nextPlan
+      ? 'Switching to ' + planBy(sub.nextPlan).name + ' at your next renewal on ' + I.date(sub.periodEnd) + '.'
+      : canceled ? 'Your plan will not renew. You keep Premium until the date above.' : 'Renews automatically. You can cancel anytime.';
+    var cb = document.getElementById('cancelBtn');
+    cb.textContent = canceled ? 'Resume subscription' : 'Cancel subscription';
+    var other = I.PLANS.find(function (p) { return p.code !== sub.plan; });
+    var sb = document.getElementById('switchBtn');
+    sb.hidden = canceled;
+    sb.textContent = sub.nextPlan ? 'Keep ' + plan.name + ' plan' : 'Switch to ' + other.name + ' at renewal';
+    document.getElementById('payRows').innerHTML = sub.payments.map(function (p) {
+      return '<tr><td>' + I.date(p.at) + '</td><td>' + I.money(p.amount) + '</td><td><span class="pill free">' + p.status + '</span></td><td style="font-family:monospace">' + p.txn + '</td></tr>';
+    }).join('');
+  }
+
+  // choosing a plan (or switching from the plan cards) opens checkout
+  document.getElementById('plans').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-plan]');
+    if (!b) return;
+    var code = b.dataset.plan;
+    if (I.entitled()) { I.switchPlan(code); I.toast('Switching to ' + planBy(code).name + ' at your next renewal'); return; }
+    I.requireLogin(function () { checkout(code); }, 'Create an account or log in to subscribe.');
+  });
+
+  function checkout(code) {
+    if (I.entitled()) { I.toast('You already have Premium'); return; }
+    var p = planBy(code);
+    var body = I.openDialog('Checkout',
+      '<div style="border:2px solid #111;border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;gap:12px">' +
+        '<div><p style="margin:0;font-weight:700">Inkline Premium · ' + p.name + '</p><p class="note-line">Renews every ' + p.interval + ' until you cancel</p></div>' +
+        '<p class="price" style="font-size:32px">' + I.money(p.priceMinor) + '</p></div>' +
+      '<p style="margin:0;font-size:13px;line-height:1.6">You\'ll be sent to ABA PayWay to pay with your ABA account or card. Access starts as soon as PayWay confirms the payment.</p>' +
+      '<button type="button" class="btn btn-block" data-pay>Pay ' + I.money(p.priceMinor) + ' with ABA PayWay</button>' +
+      '<p class="note">Demo checkout: no payment is taken.</p>',
+      { focus: '[data-pay]' });
+    body.querySelector('[data-pay]').addEventListener('click', function () {
+      // mirrors the real flow: never trust the redirect, wait for confirmation
+      body.innerHTML = '<div style="text-align:center;padding:10px 0 4px"><div class="spinner" role="img" aria-label="Loading"></div><p style="margin:12px 0 0;font-weight:700">Confirming your payment…</p><p class="note-line">Waiting for PayWay to confirm. Please keep this window open.</p></div>';
+      document.getElementById('dlgTitle').textContent = 'Almost there';
+      setTimeout(function () {
+        I.subscribe(code);
+        document.getElementById('dlgTitle').textContent = 'You\'re Premium!';
+        body.innerHTML = '<p style="margin:0;font-size:14px;line-height:1.6">Payment confirmed. Every episode is now unlocked, including early access.</p>' +
+          (ret ? '<a class="btn btn-block" href="' + ret + '">Continue reading</a>' : '<a class="btn btn-block" href="index.html#new">Read new episodes</a>') +
+          '<button type="button" class="switch" data-close>Manage subscription</button>';
+        body.querySelector('a').focus();
+      }, 1600);
+    });
+  }
+
+  document.getElementById('cancelBtn').addEventListener('click', function () {
+    var sub = I.state.sub;
+    if (sub.status === 'canceled') { I.resumeSub(); I.toast('Welcome back! Your plan will renew as usual.'); return; }
+    var body = I.openDialog('Cancel Premium?',
+      '<p style="margin:0;font-size:14px;line-height:1.6">You\'ll keep Premium until <b>' + I.date(sub.periodEnd) + '</b>. After that, early-access episodes lock again until they turn free.</p>' +
+      '<div class="cta-row"><button type="button" class="btn btn-ink" data-confirm style="flex:1">Yes, cancel</button><button type="button" class="btn btn-ghost" data-close style="flex:1">Keep Premium</button></div>',
+      { focus: '[data-close]' });
+    body.querySelector('[data-confirm]').addEventListener('click', function () {
+      I.cancelSub(); I.closeDialog(); I.toast('Canceled. Premium stays on until ' + I.date(sub.periodEnd) + '.');
+    });
+  });
+  document.getElementById('switchBtn').addEventListener('click', function () {
+    var sub = I.state.sub;
+    var other = I.PLANS.find(function (p) { return p.code !== sub.plan; });
+    I.switchPlan(sub.nextPlan ? sub.plan : other.code);
+    I.toast(sub.nextPlan ? 'Switching to ' + planBy(sub.nextPlan).name + ' at renewal' : 'Keeping your ' + planBy(sub.plan).name + ' plan');
+  });
+
+  I.onChange(render);
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Creator Studio · Inkline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<div class="page">
+  <div id="site-header"></div>
+  <main class="wrap" id="content"></main>
+  <div id="site-footer"></div>
+</div>
+
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  var I = Inkline, esc = I.esc, DAY = 864e5;
+  I.mountShell('studio');
+  var main = document.getElementById('content');
+  var MAX_BYTES = 20 * 1024 * 1024, MAX_WIDTH = 2000;
+  var GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Superhero', 'Thriller'];
+  var ACCESS = { early: 'Early access (subscribers first for 7 days)', free: 'Always free', subscriber: 'Subscribers only (permanent)' };
+  var PALETTES = [['#1e7a4a', '#0c2e1c'], ['#f08a00', '#7a2e00'], ['#1c3faa', '#0b1b4d'], ['#7b2cbf', '#240046'], ['#e03030', '#7a0f0f']];
+
+  function seed() {
+    var now = Date.now();
+    var ep = function (n, title, status, access, daysAgo, extra) {
+      return Object.assign({ id: 'e' + n + Math.random().toString(36).slice(2, 6), n: n, title: title, status: status, access: access, date: now - daysAgo * DAY, pages: 12 + n, scheduled: null, reason: null }, extra || {});
+    };
+    return { selected: 'paper-lanterns', series: [{
+      slug: 'paper-lanterns', title: 'Paper Lanterns', desc: 'A night-market lantern maker discovers her lanterns can carry messages to the dead, and the dead start writing back.',
+      genres: ['Fantasy', 'Slice of Life'], status: 'ongoing', age: 'All ages', lang: 'English', palette: 0, cover: null,
+      episodes: [
+        ep(1, 'Lights Out', 'published', 'free', 40), ep(2, 'The First Reply', 'published', 'free', 33), ep(3, 'Ink and Ash', 'published', 'free', 26),
+        ep(4, 'Market Night', 'published', 'early', 5), ep(5, 'Return to Sender', 'draft', 'early', 0),
+        ep(6, 'Undelivered', 'failed', 'early', 0, { reason: 'Page 3 is not a JPEG, PNG or WebP image (the file contains PDF data).' })
+      ]
+    }] };
+  }
+  function studio() {
+    if (!I.state.studio) { I.state.studio = seed(); I.save(); }
+    return I.state.studio;
+  }
+  function current() { var st = studio(); return st.series.find(function (s) { return s.slug === st.selected; }) || st.series[0]; }
+  function coverBg(s) {
+    if (s.cover) return 'center/cover no-repeat url(' + s.cover + ')';
+    var p = PALETTES[s.palette % PALETTES.length];
+    return 'repeating-conic-gradient(from 0deg at 50% 60%,rgba(255,255,255,.2) 0 8deg,transparent 8deg 16deg),linear-gradient(160deg,' + p[0] + ',' + p[1] + ')';
+  }
+  function slugify(t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60); }
+  function fmtBytes(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+  function statusPill(e) {
+    var map = { published: ['free', 'PUBLISHED'], draft: ['draft', 'DRAFT'], processing: ['proc', 'PROCESSING…'], failed: ['fail', 'FAILED'], scheduled: ['sched', 'SCHEDULED'] };
+    return '<span class="pill ' + map[e.status][0] + '">' + map[e.status][1] + '</span>';
+  }
+  function accessLabel(e) {
+    if (e.n <= I.CONFIG.freeEpisodes) return 'Free (ep. 1–3)';
+    return { early: 'Early access', free: 'Always free', subscriber: 'Subscribers only' }[e.access];
+  }
+
+  /* ---------- page ---------- */
+  function render() {
+    if (!I.gate(main, 'creator')) return;
+    var st = studio(), s = current(), u = I.state.user;
+    var published = s ? s.episodes.filter(function (e) { return e.status === 'published'; }).length : 0;
+
+    // 30 days of views, stable per series
+    var views = [], seedN = (s ? s.slug.length : 3) * 7;
+    for (var d = 0; d < 30; d++) { seedN = (seedN * 9301 + 49297) % 233280; views.push(Math.round(900 + (seedN / 233280) * 1400 + d * 45 + (d % 7 === 5 ? 900 : 0))); }
+    var max = Math.max.apply(null, views), total = views.reduce(function (a, b) { return a + b; }, 0);
+
+    main.innerHTML =
+      '<div class="dash" style="grid-template-columns:1fr">' +
+      '<div class="panel-head" style="margin:0"><div><p style="margin:0;color:var(--red);font-weight:600">Creator Studio</p><h1 class="page-title">' + esc(u.creator ? u.creator.pen : u.name) + '</h1></div>' +
+        '<button type="button" class="btn btn-sm" id="newSeries">+ New series</button></div>' +
+
+      '<div class="kpis">' +
+        kpi('Views · 30 days', (total / 1000).toFixed(1) + 'K', '+12% vs last 30 days', 'up') +
+        kpi('Followers', '3,140', '+186 this month', 'up') +
+        kpi('Likes', '9,870', '+4% vs last 30 days', 'up') +
+        kpi('Published episodes', String(published), s ? s.episodes.length - published + ' not live' : '', '') +
+      '</div>' +
+
+      '<div class="panel"><div class="panel-head"><div><h2>Daily views</h2><p>' + (s ? esc(s.title) + ', last 30 days' : 'Last 30 days') + '</p></div></div>' +
+        '<div class="chart" role="img" aria-label="Daily views over the last 30 days, from ' + views[0] + ' to ' + views[29] + ', peak ' + max + '">' +
+        views.map(function (v, i) { return '<div class="bar" style="height:' + Math.round(v / max * 100) + '%"><span class="chart-tip">' + v.toLocaleString() + ' · ' + I.date(Date.now() - (29 - i) * DAY).replace(/, \d{4}/, '') + '</span></div>'; }).join('') +
+        '</div><div class="chart-axis"><span>30 days ago</span><span>Today</span></div></div>' +
+
+      '<div class="panel"><div class="panel-head"><div><h2>My series</h2><p>Pick a series to manage its episodes.</p></div></div>' +
+        '<div class="series-pick">' + st.series.map(function (x) {
+          return '<button type="button" data-pick="' + x.slug + '" aria-pressed="' + (x.slug === st.selected) + '"><span class="thumb" style="background:' + coverBg(x) + '"></span><span class="row-body"><p class="row-title">' + esc(x.title) + '</p><p class="row-sub">' + x.episodes.length + ' episodes · ' + x.status + '</p></span></button>';
+        }).join('') + '</div></div>' +
+
+      (s ? seriesPanel(s) : '') +
+      '</div>';
+  }
+  function kpi(label, value, delta, dir) {
+    return '<div class="kpi"><p>' + label + '</p><strong>' + value + '</strong>' + (delta ? '<span class="delta ' + dir + '">' + delta + '</span>' : '') + '</div>';
+  }
+  function seriesPanel(s) {
+    var rows = s.episodes.map(function (e, i) {
+      var drafts = function (j) { return s.episodes[j] && s.episodes[j].status !== 'published' && s.episodes[j].status !== 'processing'; };
+      var movable = e.status !== 'published' && e.status !== 'processing';
+      var acts = '';
+      if (e.status === 'failed') acts += '<button type="button" class="mini" data-act="retry" data-id="' + e.id + '">Retry</button>';
+      if (e.status === 'scheduled') acts += '<button type="button" class="mini" data-act="publish" data-id="' + e.id + '">Publish now</button>';
+      if (e.status !== 'processing') acts += '<button type="button" class="mini" data-act="edit" data-id="' + e.id + '">Edit</button>';
+      if (movable) acts += '<button type="button" class="mini" data-act="up" data-id="' + e.id + '" aria-label="Move ep. ' + e.n + ' up"' + (drafts(i - 1) ? '' : ' disabled') + '>↑</button><button type="button" class="mini" data-act="down" data-id="' + e.id + '" aria-label="Move ep. ' + e.n + ' down"' + (drafts(i + 1) ? '' : ' disabled') + '>↓</button>';
+      if (e.status === 'draft' || e.status === 'failed') acts += '<button type="button" class="mini warn" data-act="delete" data-id="' + e.id + '">Delete</button>';
+      var when = e.status === 'scheduled' ? 'Goes live ' + new Date(e.scheduled).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+        : e.status === 'published' ? I.date(e.date) : e.status === 'processing' ? 'Processing pages…' : 'Not published';
+      return '<tr><td style="font-family:var(--display);font-weight:700;font-size:18px">' + e.n + '</td>' +
+        '<td><b style="font-size:13px">' + esc(e.title) + '</b><br><span class="hint">' + e.pages + ' pages</span>' + (e.reason ? '<p class="err" style="font-size:11px;max-width:320px">' + esc(e.reason) + '</p>' : '') + '</td>' +
+        '<td>' + statusPill(e) + '</td><td style="font-size:12px">' + accessLabel(e) + '</td><td style="font-size:12px;white-space:nowrap">' + when + '</td>' +
+        '<td><div class="row-actions">' + acts + '</div></td></tr>';
+    }).join('');
+    return '<div class="panel"><div class="panel-head">' +
+      '<div style="display:flex;gap:14px;align-items:center"><span class="cover-preview" style="width:64px;background:' + coverBg(s) + '"></span><div><h2>' + esc(s.title) + '</h2><p>' + esc(s.genres.join(' · ')) + ' · ' + s.age + ' · ' + s.lang + ' · ' + s.status + '</p></div></div>' +
+      '<div class="cta-row" style="margin:0"><button type="button" class="btn btn-sm btn-ghost" id="editSeries">Edit series</button><button type="button" class="btn btn-sm" id="newEp">+ New episode</button></div></div>' +
+      '<div class="table-scroll"><table class="history"><thead><tr><th scope="col">#</th><th scope="col">Episode</th><th scope="col">Status</th><th scope="col">Access</th><th scope="col">Date</th><th scope="col">Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="note-line" style="margin-top:10px">Episodes 1–3 are always free. New episodes default to early access: subscribers first, free for everyone after 7 days. Only drafts can be reordered.</p></div>';
+  }
+
+  /* ---------- episode actions ---------- */
+  function commit(msg) { I.changed(); if (msg) I.toast(msg); }
+  function renumber(s) { s.episodes.forEach(function (e, i) { e.n = i + 1; }); }
+  function process(s, e, files) {
+    e.status = 'processing'; e.reason = null;
+    commit();
+    setTimeout(function () {
+      var bad = files && files.find(function (f) { return f.bad; });
+      if (bad) { e.status = 'failed'; e.reason = bad.bad; commit('Episode ' + e.n + ' failed to process'); return; }
+      if (e.scheduled && e.scheduled > Date.now()) { e.status = 'scheduled'; commit('Episode ' + e.n + ' is ready and scheduled'); }
+      else { e.status = 'published'; e.date = Date.now(); commit('Episode ' + e.n + ' is live!'); }
+    }, 2500);
+  }
+
+  main.addEventListener('click', function (ev) {
+    var t = ev.target;
+    var pick = t.closest('[data-pick]');
+    if (pick) { studio().selected = pick.dataset.pick; commit(); var again = main.querySelector('[data-pick="' + pick.dataset.pick + '"]'); if (again) again.focus(); return; }
+    if (t.closest('#newSeries')) return seriesDialog(null);
+    if (t.closest('#editSeries')) return seriesDialog(current());
+    if (t.closest('#newEp')) return episodeDialog(current(), null);
+    var a = t.closest('[data-act]');
+    if (!a) return;
+    var s = current(), i = s.episodes.findIndex(function (e) { return e.id === a.dataset.id; }), e = s.episodes[i];
+    switch (a.dataset.act) {
+      case 'edit': episodeDialog(s, e); break;
+      case 'retry': process(s, e, null); break;
+      case 'publish': e.scheduled = null; e.status = 'published'; e.date = Date.now(); commit('Episode ' + e.n + ' is live!'); break;
+      case 'up': case 'down':
+        var j = a.dataset.act === 'up' ? i - 1 : i + 1;
+        s.episodes[i] = s.episodes[j]; s.episodes[j] = e; renumber(s); commit('Moved to episode ' + e.n);
+        var b = main.querySelector('[data-act="' + a.dataset.act + '"][data-id="' + e.id + '"]');
+        (b && !b.disabled ? b : main.querySelector('[data-act="edit"][data-id="' + e.id + '"]')).focus();
+        break;
+      case 'delete':
+        I.confirmAction('Delete episode ' + e.n + '?', '“' + esc(e.title) + '” and its uploaded pages will be removed. This can\'t be undone.', 'Delete draft', function () {
+          s.episodes.splice(i, 1); renumber(s); commit('Draft deleted');
+        });
+        break;
+    }
+  });
+
+  /* ---------- series dialog ---------- */
+  function seriesDialog(s) {
+    var st = studio(), isNew = !s, coverData = s ? s.cover : null;
+    var sel = function (id, opts, val) { return '<select id="' + id + '">' + opts.map(function (o) { return '<option' + (o === val ? ' selected' : '') + '>' + o + '</option>'; }).join('') + '</select>'; };
+    var body = I.openDialog(isNew ? 'New series' : 'Edit series',
+      '<form id="sForm" novalidate>' +
+        '<div class="field"><label for="sTitle">Title</label><input id="sTitle" maxlength="80" value="' + esc(s ? s.title : '') + '"></div>' +
+        '<div class="field"><label for="sSlug">URL</label><input id="sSlug" maxlength="60" value="' + esc(s ? s.slug : '') + '"' + (isNew ? '' : ' disabled') + '><p class="hint">inkline.com/series/<b id="slugPrev">' + esc(s ? s.slug : 'your-title') + '</b>' + (isNew ? '' : ' · can\'t change after creating') + '</p></div>' +
+        '<div class="field"><label for="sDesc">Description</label><textarea id="sDesc" maxlength="600">' + esc(s ? s.desc : '') + '</textarea></div>' +
+        '<fieldset style="border:0;margin:0;padding:0"><legend style="font-size:12px;font-weight:600;margin-bottom:6px">Genres (up to 3)</legend><div class="check-chips">' +
+          GENRES.map(function (g) { return '<label><input type="checkbox" name="genre" value="' + g + '"' + (s && s.genres.indexOf(g) > -1 ? ' checked' : '') + '>' + g + '</label>'; }).join('') + '</div></fieldset>' +
+        '<div class="form-grid">' +
+          '<div class="field"><label for="sStatus">Status</label>' + sel('sStatus', ['ongoing', 'completed', 'hiatus'], s ? s.status : 'ongoing') + '</div>' +
+          '<div class="field"><label for="sAge">Age rating</label>' + sel('sAge', ['All ages', 'Teen', 'Mature'], s ? s.age : 'All ages') + '</div>' +
+          '<div class="field"><label for="sLang">Language</label>' + sel('sLang', ['English'], 'English') + '</div>' +
+        '</div>' +
+        '<div class="field"><span style="font-size:12px;font-weight:600">Cover image</span><div style="display:flex;gap:14px;align-items:center"><span class="cover-preview" id="cPrev" style="background:' + (s ? coverBg(s) : 'var(--paper)') + '"></span>' +
+          '<div style="display:flex;flex-direction:column;gap:6px"><label class="btn btn-sm btn-ghost" style="cursor:pointer">Choose image<input type="file" id="cFile" accept="image/jpeg,image/png,image/webp" class="sr-only"></label><p class="hint">JPEG, PNG or WebP, up to 20 MB. 2:3 works best.</p><p class="err" id="cErr" hidden></p></div></div></div>' +
+        '<p class="err" id="sErr" hidden></p>' +
+        '<button type="submit" class="btn btn-block">' + (isNew ? 'Create series' : 'Save series') + '</button>' +
+      '</form>', { wide: true });
+
+    var title = body.querySelector('#sTitle'), slug = body.querySelector('#sSlug'), slugTouched = !isNew;
+    title.addEventListener('input', function () { if (!slugTouched) { slug.value = slugify(title.value); body.querySelector('#slugPrev').textContent = slug.value || 'your-title'; } });
+    slug.addEventListener('input', function () { slugTouched = true; slug.value = slugify(slug.value); body.querySelector('#slugPrev').textContent = slug.value || 'your-title'; });
+    body.querySelectorAll('[name=genre]').forEach(function (c) {
+      c.addEventListener('change', function () {
+        if (body.querySelectorAll('[name=genre]:checked').length > 3) { c.checked = false; I.toast('Pick up to 3 genres'); }
+      });
+    });
+    body.querySelector('#cFile').addEventListener('change', function (e) {
+      var f = e.target.files[0], err = body.querySelector('#cErr');
+      if (!f) return;
+      checkImage(f).then(function (problem) {
+        err.hidden = !problem; err.textContent = problem || '';
+        if (problem) return;
+        // downscale to a small preview so it fits in browser storage
+        var img = new Image();
+        img.onload = function () {
+          var c = document.createElement('canvas'), w = 200;
+          c.width = w; c.height = Math.round(img.height * w / img.width);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          coverData = c.toDataURL('image/jpeg', .8);
+          body.querySelector('#cPrev').style.background = 'center/cover no-repeat url(' + coverData + ')';
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(f);
+      });
+    });
+    body.querySelector('#sForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var err = body.querySelector('#sErr'), genres = Array.prototype.map.call(body.querySelectorAll('[name=genre]:checked'), function (c) { return c.value; });
+      var taken = isNew && (st.series.some(function (x) { return x.slug === slug.value; }) || I.SERIES.some(function (x) { return x.slug === slug.value; }));
+      var msg = title.value.trim().length < 2 ? 'Give your series a title.' : !slug.value ? 'The URL can\'t be empty.' : taken ? 'That URL is taken. Try another.' : !genres.length ? 'Pick at least one genre.' : '';
+      err.hidden = !msg; err.textContent = msg;
+      if (msg) return;
+      var data = { title: title.value.trim(), desc: body.querySelector('#sDesc').value.trim(), genres: genres, status: body.querySelector('#sStatus').value, age: body.querySelector('#sAge').value, lang: 'English', cover: coverData };
+      if (isNew) {
+        st.series.push(Object.assign({ slug: slug.value, palette: st.series.length, episodes: [] }, data));
+        st.selected = slug.value;
+      } else Object.assign(s, data);
+      I.closeDialog();
+      commit(isNew ? 'Series created. Add your first episode.' : 'Series saved');
+    });
+  }
+
+  /* ---------- upload checks ---------- */
+  function checkImage(file) {
+    if (file.size > MAX_BYTES) return Promise.resolve('Larger than 20 MB (' + fmtBytes(file.size) + ').');
+    return file.slice(0, 12).arrayBuffer().then(function (buf) {
+      var b = new Uint8Array(buf), hex = Array.prototype.map.call(b, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      var ok = hex.indexOf('ffd8ff') === 0 || hex.indexOf('89504e47') === 0 || (hex.indexOf('52494646') === 0 && hex.slice(16, 24) === '57454250');
+      if (!ok) return 'Not a JPEG, PNG or WebP image (checked the file contents, not the name).';
+      return new Promise(function (res) {
+        var img = new Image(), url = URL.createObjectURL(file);
+        img.onload = function () { URL.revokeObjectURL(url); res(img.naturalWidth > MAX_WIDTH ? 'Wider than ' + MAX_WIDTH + ' px (' + img.naturalWidth + ' px).' : null); };
+        img.onerror = function () { URL.revokeObjectURL(url); res('The image is damaged and can\'t be opened.'); };
+        img.src = url;
+      });
+    });
+  }
+
+  /* ---------- episode dialog with uploads ---------- */
+  function episodeDialog(s, e) {
+    var isNew = !e, files = [], nextN = s.episodes.length + 1;
+    var n = isNew ? nextN : e.n;
+    var canUpload = isNew || e.status === 'draft' || e.status === 'failed';
+    var local = function (t) { var d = new Date(t - new Date().getTimezoneOffset() * 6e4); return d.toISOString().slice(0, 16); };
+    var body = I.openDialog(isNew ? 'New episode ' + n : 'Edit episode ' + n,
+      '<form id="eForm" novalidate>' +
+        '<div class="field"><label for="eTitle">Episode title</label><input id="eTitle" maxlength="80" value="' + esc(e ? e.title : '') + '"></div>' +
+        '<div class="form-grid">' +
+          '<div class="field"><label for="eAccess">Access</label><select id="eAccess"' + (n <= I.CONFIG.freeEpisodes ? ' disabled' : '') + '>' +
+            Object.keys(ACCESS).map(function (k) { return '<option value="' + k + '"' + ((e ? e.access : 'early') === k ? ' selected' : '') + '>' + ACCESS[k] + '</option>'; }).join('') + '</select>' +
+            (n <= I.CONFIG.freeEpisodes ? '<p class="hint">Episodes 1–3 are always free.</p>' : '') + '</div>' +
+          (e && e.status === 'published' ? '' : '<div class="field"><label for="eWhen">Publish date (optional)</label><input id="eWhen" type="datetime-local" min="' + local(Date.now()) + '" value="' + (e && e.scheduled ? local(e.scheduled) : '') + '"><p class="hint">Leave empty to publish as soon as pages are processed.</p></div>') +
+        '</div>' +
+        (canUpload
+          ? '<div class="field"><span style="font-size:12px;font-weight:600">Pages</span>' +
+            '<div class="dropzone" id="drop"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D91E1E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>' +
+            '<p><b>Drag pages here</b> or</p><label class="btn btn-sm btn-ghost" style="cursor:pointer">Choose files<input type="file" id="eFiles" accept="image/jpeg,image/png,image/webp" multiple class="sr-only"></label>' +
+            '<p class="hint">JPEG, PNG or WebP · up to 20 MB and 2000 px wide each · in reading order</p></div>' +
+            '<ul class="files" id="fileList" style="margin-top:10px"></ul></div>'
+          : '<p class="note-line">Pages are already processed for this episode. You can change its title and access.</p>') +
+        '<p class="err" id="eErr" hidden></p>' +
+        '<div class="cta-row">' + (canUpload ? '<button type="button" class="btn btn-ghost" id="saveDraft" style="flex:1">Save draft</button>' : '') +
+        '<button type="submit" class="btn" style="flex:1">' + (canUpload ? 'Submit for processing' : 'Save') + '</button></div>' +
+      '</form>', { wide: true });
+
+    var list = body.querySelector('#fileList');
+    function drawFiles() {
+      if (!list) return;
+      list.innerHTML = files.map(function (f, i) {
+        var meta = f.bad ? '<p class="file-meta bad">' + esc(f.bad) + '</p>'
+          : f.failed ? '<p class="file-meta bad">Upload failed. Check your connection and retry.</p>'
+          : '<p class="file-meta">' + fmtBytes(f.file.size) + (f.progress >= 100 ? ' · uploaded' : f.progress > 0 ? ' · ' + Math.round(f.progress) + '%' : ' · checking…') + '</p>';
+        return '<li class="file"><span class="file-num">' + (i + 1) + '</span><div class="file-body"><p class="file-name">' + esc(f.file.name) + '</p>' + meta +
+          (f.bad || f.failed ? '' : '<div class="meter' + (f.progress >= 100 ? ' done' : '') + '"><i style="width:' + f.progress + '%"></i></div>') + '</div>' +
+          (f.failed ? '<button type="button" class="mini" data-f="retry" data-i="' + i + '">Retry</button>' : '') +
+          '<button type="button" class="mini" data-f="up" data-i="' + i + '" aria-label="Move page ' + (i + 1) + ' up"' + (i ? '' : ' disabled') + '>↑</button>' +
+          '<button type="button" class="mini" data-f="down" data-i="' + i + '" aria-label="Move page ' + (i + 1) + ' down"' + (i < files.length - 1 ? '' : ' disabled') + '>↓</button>' +
+          '<button type="button" class="mini warn" data-f="remove" data-i="' + i + '" aria-label="Remove ' + esc(f.file.name) + '">✕</button></li>';
+      }).join('');
+    }
+    function upload(f) {
+      f.failed = false; f.progress = 1; drawFiles();
+      var willFail = Math.random() < 0.1; // simulate a flaky connection now and then
+      var timer = setInterval(function () {
+        if (!document.body.contains(list)) return clearInterval(timer);
+        f.progress = Math.min(100, f.progress + 8 + Math.random() * 18);
+        if (willFail && f.progress > 55) { clearInterval(timer); f.failed = true; f.progress = 0; }
+        else if (f.progress >= 100) clearInterval(timer);
+        drawFiles();
+      }, 160);
+    }
+    function addFiles(fl) {
+      Array.prototype.forEach.call(fl, function (file) {
+        var f = { file: file, progress: 0, bad: null, failed: false };
+        files.push(f);
+        checkImage(file).then(function (problem) { f.bad = problem; if (problem) drawFiles(); else upload(f); });
+      });
+      drawFiles();
+    }
+    if (canUpload) {
+      body.querySelector('#eFiles').addEventListener('change', function (ev) { addFiles(ev.target.files); ev.target.value = ''; });
+      var drop = body.querySelector('#drop');
+      ['dragenter', 'dragover'].forEach(function (k) { drop.addEventListener(k, function (ev) { ev.preventDefault(); drop.classList.add('over'); }); });
+      ['dragleave', 'drop'].forEach(function (k) { drop.addEventListener(k, function (ev) { ev.preventDefault(); drop.classList.remove('over'); }); });
+      drop.addEventListener('drop', function (ev) { addFiles(ev.dataTransfer.files); });
+      list.addEventListener('click', function (ev) {
+        var b = ev.target.closest('[data-f]'); if (!b) return;
+        var i = +b.dataset.i, f = files[i];
+        if (b.dataset.f === 'remove') files.splice(i, 1);
+        if (b.dataset.f === 'retry') upload(f);
+        if (b.dataset.f === 'up' || b.dataset.f === 'down') { var j = b.dataset.f === 'up' ? i - 1 : i + 1; files[i] = files[j]; files[j] = f; }
+        drawFiles();
+        var again = list.querySelector('[data-f="' + b.dataset.f + '"][data-i="' + (b.dataset.f === 'up' ? i - 1 : b.dataset.f === 'down' ? i + 1 : i) + '"]');
+        if (again && !again.disabled) again.focus();
+      });
+    }
+
+    function collect(asDraft) {
+      var err = body.querySelector('#eErr'), title = body.querySelector('#eTitle').value.trim();
+      var when = body.querySelector('#eWhen'), at = when && when.value ? new Date(when.value).getTime() : null;
+      var msg = !title ? 'Give the episode a title.' : at && at < Date.now() ? 'Pick a publish date in the future.' : '';
+      if (!msg && !asDraft && canUpload) {
+        var ready = files.filter(function (f) { return !f.bad; });
+        if (!ready.length && !(e && e.status === 'failed')) msg = 'Add at least one page.';
+        else if (files.some(function (f) { return f.bad; })) msg = 'Remove the pages marked in red first.';
+        else if (files.some(function (f) { return f.failed; })) msg = 'Some pages failed to upload. Retry or remove them.';
+        else if (files.some(function (f) { return f.progress < 100; })) msg = 'Wait for uploads to finish.';
+      }
+      err.hidden = !msg; err.textContent = msg;
+      if (msg) return null;
+      return { title: title, access: n <= I.CONFIG.freeEpisodes ? 'free' : body.querySelector('#eAccess').value, scheduled: at };
+    }
+    function store(data) {
+      if (isNew) { e = { id: 'e' + Date.now().toString(36), n: n, status: 'draft', date: Date.now(), pages: 0, reason: null }; s.episodes.push(e); }
+      Object.assign(e, data);
+      if (files.length) e.pages = files.length;
+    }
+    var draftBtn = body.querySelector('#saveDraft');
+    if (draftBtn) draftBtn.addEventListener('click', function () {
+      var data = collect(true); if (!data) return;
+      store(data); if (e.status !== 'failed') e.status = 'draft';
+      I.closeDialog(); commit('Draft saved');
+    });
+    body.querySelector('#eForm').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var data = collect(false); if (!data) return;
+      store(data);
+      I.closeDialog();
+      if (canUpload) process(s, e, null);
+      else { if (e.status === 'scheduled' && !data.scheduled) { e.status = 'published'; e.date = Date.now(); } commit('Episode saved'); }
+    });
+  }
+
+  // reloaded mid-processing: treat the worker as finished
+  if (I.state.studio) I.state.studio.series.forEach(function (s) {
+    s.episodes.forEach(function (e) { if (e.status === 'processing') e.status = e.scheduled && e.scheduled > Date.now() ? 'scheduled' : 'published'; });
+  });
+
+  I.onChange(render);
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Series · Inkline</title>
+<meta name="description" content="Read this series on Inkline.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<div class="page">
+  <div id="site-header"></div>
+
+  <main class="wrap">
+    <nav class="crumb" aria-label="Breadcrumb"><a href="index.html">Home</a><span aria-hidden="true">›</span><a href="index.html#all">Series</a><span aria-hidden="true">›</span><span id="crumbTitle" aria-current="page"></span></nav>
+
+    <section class="series-hero">
+      <div class="series-cover" id="cover"><span id="coverText"></span></div>
+      <div class="series-info">
+        <div class="tags" id="tags"></div>
+        <h1 id="title"></h1>
+        <p class="by">by <a href="#" id="creator"></a></p>
+        <p class="desc" id="desc"></p>
+        <dl class="stats" id="stats"></dl>
+        <div class="cta-row">
+          <a class="btn" id="readBtn" href="#"></a>
+          <button type="button" class="btn btn-ghost" id="followBtn" aria-pressed="false"></button>
+        </div>
+        <p class="note-line" id="accessNote"></p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:36px" aria-labelledby="epHeading">
+      <div class="panel">
+        <div class="ep-head">
+          <h2 id="epHeading">Episodes</h2>
+          <div class="seg" role="group" aria-label="Sort episodes">
+            <button type="button" data-sort="desc" aria-pressed="true">Newest</button>
+            <button type="button" data-sort="asc" aria-pressed="false">First</button>
+          </div>
+        </div>
+        <ul class="list ep-list" id="epList"></ul>
+        <button type="button" class="btn btn-ghost btn-block load-more" id="loadMore">Show more episodes</button>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="moreHeading">
+      <div class="sec-row"><h2 id="moreHeading">You May Also Like</h2><a class="more" href="index.html#all">All series ›</a></div>
+      <div class="book-grid wide" id="moreGrid"></div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+</div>
+
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  var I = Inkline;
+  I.mountShell('series');
+  var s = I.bySlug(I.param('s')) || I.SERIES[0];
+  var eps = I.episodes(s);
+  var sort = 'desc', shown = 6;
+
+  document.title = s.title + ' · Inkline';
+  document.getElementById('crumbTitle').textContent = s.title;
+  document.getElementById('cover').style.background = s.bg;
+  var ct = document.getElementById('coverText');
+  ct.textContent = s.cover; ct.style.color = s.ink; ct.style.textShadow = '3px 3px 0 ' + I.inkShadow(s);
+  document.getElementById('title').textContent = s.title;
+  document.getElementById('creator').textContent = s.creator;
+  document.getElementById('creator').addEventListener('click', function (e) { e.preventDefault(); I.toast('Creator profiles arrive with the creator studio.'); });
+  document.getElementById('desc').textContent = s.desc;
+  document.getElementById('tags').innerHTML = s.genres.map(function (g, i) { return '<span class="tag ' + (i ? 'line' : 'solid') + '">' + g.toUpperCase() + '</span>'; }).join('') +
+    '<span class="tag line">' + s.status.toUpperCase() + '</span><span class="tag line">' + s.age.toUpperCase() + '</span>';
+  document.getElementById('stats').innerHTML = '<div><dt>Views</dt><dd>' + s.views + '</dd></div><div><dt>Followers</dt><dd>' + s.followers + '</dd></div><div><dt>Likes</dt><dd>' + s.likes + '</dd></div><div><dt>Episodes</dt><dd>' + eps.length + '</dd></div>';
+
+  document.getElementById('followBtn').addEventListener('click', function () { I.toggleFollow(s.slug); });
+  document.querySelectorAll('[data-sort]').forEach(function (b) {
+    b.addEventListener('click', function () { sort = b.dataset.sort; render(); });
+  });
+  document.getElementById('loadMore').addEventListener('click', function () {
+    shown = eps.length; render();
+    var rows = document.querySelectorAll('#epList a'); if (rows[6]) rows[6].focus();
+  });
+
+  function render() {
+    var prog = I.state.progress[s.slug];
+    var read = document.getElementById('readBtn');
+    if (prog) { read.href = 'read.html?s=' + s.slug + '&e=' + prog.number; read.textContent = 'Continue Ep. ' + prog.number; }
+    else { read.href = 'read.html?s=' + s.slug + '&e=1'; read.textContent = 'Read Ep. 1'; }
+
+    var on = I.isFollowing(s.slug), fb = document.getElementById('followBtn');
+    fb.setAttribute('aria-pressed', on);
+    fb.textContent = on ? 'Following ✓' : '+ Follow';
+
+    var sub = I.entitled();
+    document.getElementById('accessNote').innerHTML = sub
+      ? 'You have Premium: every episode is unlocked, including early access.'
+      : 'Episodes 1–3 are free. New episodes are free 7 days after release, or now with <a href="subscribe.html" style="color:var(--red);font-weight:600">Premium</a>.';
+
+    document.querySelectorAll('[data-sort]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.sort === sort); });
+    var list = eps.slice();
+    if (sort === 'desc') list.reverse();
+    document.getElementById('epList').innerHTML = list.slice(0, shown).map(function (e) {
+      return '<li><a class="row' + (I.isRead(e) ? ' is-read' : '') + '" href="read.html?s=' + s.slug + '&e=' + e.number + '">' +
+        '<span class="thumb" style="' + I.thumbStyle(s, e.number) + '"><b>' + e.number + '</b></span>' +
+        '<span class="row-body"><p class="row-title">Ep. ' + e.number + ': ' + I.esc(e.title) + '</p><p class="row-sub">' + I.date(e.publishedAt) + (prog && prog.number === e.number ? ' · <span class="red">Reading</span>' : '') + '</p></span>' +
+        I.epPill(e) + '</a></li>';
+    }).join('');
+    document.getElementById('loadMore').hidden = shown >= eps.length;
+
+    document.getElementById('moreGrid').innerHTML = I.SERIES.filter(function (x) { return x.slug !== s.slug; }).slice(0, 4).map(I.seriesCard).join('');
+  }
+
+  I.onChange(render);
+  render();
+})();
+</script>
+</body>
+</html>

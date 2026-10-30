@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · Inkline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<div class="page">
+  <div id="site-header"></div>
+  <main class="wrap" id="content"></main>
+  <div id="site-footer"></div>
+</div>
+
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  var I = Inkline, esc = I.esc, DAY = 864e5;
+  I.mountShell('admin');
+  var main = document.getElementById('content');
+  var TABS = [['overview', 'Overview'], ['users', 'Users'], ['content', 'Content'], ['payments', 'Payments'], ['plans', 'Plans'], ['audit', 'Audit log']];
+  var tab = location.hash.slice(1);
+  var ui = { userQ: '', userRole: 'all', payQ: '', auditQ: '', auditKind: 'all' };
+
+  function seed() {
+    var now = Date.now();
+    var users = [
+      ['Dara Sok', 'dara@example.com', 'reader', 'active', 120], ['A. Rivera', 'rivera@example.com', 'creator', 'active', 400], ['M. Okafor', 'okafor@example.com', 'creator', 'active', 380],
+      ['Lina Chan', 'lina@example.com', 'reader', 'active', 45], ['Vibol Keo', 'vibol@example.com', 'reader', 'suspended', 210], ['Sam Taylor', 'sam@example.com', 'reader', 'active', 12],
+      ['L. Tanaka', 'tanaka@example.com', 'creator', 'active', 300], ['Rosa Lim', 'rosa@example.com', 'admin', 'active', 500]
+    ].map(function (u, i) { return { id: 'u' + i, name: u[0], email: u[1], role: u[2], status: u[3], joined: now - u[4] * DAY }; });
+    var pays = [
+      ['dara@example.com', 'yearly', 4999, 'Succeeded', 1], ['lina@example.com', 'monthly', 499, 'Succeeded', 2], ['sam@example.com', 'monthly', 499, 'Failed', 2],
+      ['vibol@example.com', 'monthly', 499, 'Refunded', 6], ['dara@example.com', 'monthly', 499, 'Succeeded', 30], ['rosa@example.com', 'yearly', 4999, 'Succeeded', 9],
+      ['lina@example.com', 'monthly', 499, 'Succeeded', 32], ['sam@example.com', 'monthly', 499, 'Failed', 4]
+    ].map(function (p, i) { return { txn: 'PW' + (48211907 + i * 1371), email: p[0], plan: p[1], amount: p[2], status: p[3], at: now - p[4] * DAY }; });
+    return {
+      users: users, payments: pays,
+      featured: ['super-knight', 'red-squad', 'nova-nexus', 'steel-vanguard'], unpublished: [],
+      reports: [
+        { id: 'r1', series: 'red-squad', ep: 4, by: 'lina@example.com', reason: 'Spam', text: 'Free coins at totally-legit-link dot com!!!', status: 'open' },
+        { id: 'r2', series: 'nova-nexus', ep: 9, by: 'dara@example.com', reason: 'Harassment', text: '[Comment with insults aimed at another reader]', status: 'open' },
+        { id: 'r3', series: 'night-owl', ep: 2, by: 'sam@example.com', reason: 'Spoilers', text: 'The host is the caller the whole time.', status: 'open' }
+      ],
+      mismatches: [
+        { txn: 'PW48219962', issue: 'PayWay shows Succeeded, we show Pending', amount: 499, status: 'open' },
+        { txn: 'PW48220415', issue: 'Charged twice by PayWay for one renewal', amount: 4999, status: 'open' }
+      ],
+      plans: I.PLANS.map(function (p) { return { code: p.code, name: p.name, interval: p.interval, priceMinor: p.priceMinor, active: true }; })
+    };
+  }
+  function A() { if (!I.state.admin) { I.state.admin = seed(); I.save(); } return I.state.admin; }
+  function commit(action, target, meta, msg) { I.audit(action, target, meta); I.changed(); if (msg) I.toast(msg); }
+  function kpi(label, value, delta, dir) { return '<div class="kpi"><p>' + label + '</p><strong>' + value + '</strong>' + (delta ? '<span class="delta ' + dir + '">' + delta + '</span>' : '') + '</div>'; }
+  function table(head, rows, empty) {
+    return '<div class="table-scroll"><table class="history"><thead><tr>' + head.map(function (h) { return '<th scope="col">' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      (rows.length ? rows.join('') : '<tr><td colspan="' + head.length + '" class="note-line" style="padding:18px 8px">' + empty + '</td></tr>') + '</tbody></table></div>';
+  }
+  function payPill(s) { return '<span class="pill ' + ({ Succeeded: 'free', Failed: 'fail', Refunded: 'draft' }[s] || 'draft') + '">' + s.toUpperCase() + '</span>'; }
+
+  function shell() {
+    if (!I.gate(main, 'admin')) return;
+    if (!TABS.some(function (t) { return t[0] === tab; })) tab = 'overview';
+    main.innerHTML = '<div class="dash"><nav class="side" aria-label="Admin sections"><p class="side-title">Admin</p>' +
+      TABS.map(function (t) { return '<button type="button" data-tab="' + t[0] + '" aria-current="' + (t[0] === tab) + '">' + t[1] + '</button>'; }).join('') +
+      '</nav><div class="stack" id="section"></div></div>';
+    section();
+  }
+
+  function section() {
+    var a = A(), el = document.getElementById('section');
+    if (!el) return;
+    document.querySelectorAll('[data-tab]').forEach(function (b) { b.setAttribute('aria-current', b.dataset.tab === tab); });
+
+    if (tab === 'overview') {
+      var failed = a.payments.filter(function (p) { return p.status === 'Failed'; }).length;
+      var rev = [], s = 11;
+      for (var d = 0; d < 14; d++) { s = (s * 9301 + 49297) % 233280; rev.push(Math.round(220 + (s / 233280) * 260 + d * 6)); }
+      var max = Math.max.apply(null, rev);
+      el.innerHTML = '<h1 class="page-title">Overview</h1>' +
+        '<div class="kpis">' + kpi('Daily active readers', '12,480', '+6.2% vs last week', 'up') + kpi('New subscribers · 7d', '342', '+18 vs last week', 'up') +
+          kpi('Monthly recurring revenue', '$8,912', '+$412 this month', 'up') + kpi('Churn · 30d', '3.1%', '+0.4 pts', 'down') + kpi('Failed payments', String(failed), 'in grace period', 'down') + '</div>' +
+        '<div class="panel"><div class="panel-head"><div><h2>Revenue</h2><p>Successful charges per day, last 14 days (USD)</p></div></div>' +
+          '<div class="chart" role="img" aria-label="Daily revenue for 14 days, between $' + Math.min.apply(null, rev) + ' and $' + max + '">' +
+          rev.map(function (v, i) { return '<div class="bar" style="height:' + Math.round(v / max * 100) + '%"><span class="chart-tip">$' + v + ' · ' + I.date(Date.now() - (13 - i) * DAY).replace(/, \d{4}/, '') + '</span></div>'; }).join('') +
+          '</div><div class="chart-axis"><span>14 days ago</span><span>Today</span></div></div>' +
+        '<div class="panel"><div class="panel-head"><div><h2>Top series</h2><p>By views, last 7 days</p></div></div>' +
+          table(['Series', 'Creator', 'Views', 'Followers', ''], I.SERIES.slice().sort(function (x, y) { return parseFloat(y.views) - parseFloat(x.views); }).map(function (x) {
+            return '<tr><td><b>' + esc(x.title) + '</b></td><td>' + esc(x.creator) + '</td><td>' + x.views + '</td><td>' + x.followers + '</td><td><a class="mini" style="display:inline-flex;align-items:center;text-decoration:none" href="series.html?s=' + x.slug + '">Open</a></td></tr>';
+          }), '') + '</div>';
+    }
+
+    if (tab === 'users') {
+      var q = ui.userQ.toLowerCase();
+      var list = a.users.filter(function (u) { return (ui.userRole === 'all' || u.role === ui.userRole) && (!q || (u.name + ' ' + u.email).toLowerCase().indexOf(q) > -1); });
+      el.innerHTML = '<h1 class="page-title">Users</h1><div class="panel">' +
+        '<div class="toolbar"><div class="field"><label for="uq" class="sr-only">Search users</label><input id="uq" type="search" placeholder="Search name or email" value="' + esc(ui.userQ) + '"></div>' +
+        '<div class="field" style="flex:0 0 160px"><label for="ur" class="sr-only">Role</label><select id="ur">' + ['all', 'reader', 'creator', 'admin'].map(function (r) { return '<option value="' + r + '"' + (r === ui.userRole ? ' selected' : '') + '>' + (r === 'all' ? 'All roles' : r) + '</option>'; }).join('') + '</select></div></div>' +
+        table(['User', 'Role', 'Status', 'Joined', 'Actions'], list.map(function (u) {
+          return '<tr><td><b>' + esc(u.name) + '</b><br><span class="hint">' + esc(u.email) + '</span></td>' +
+            '<td><label class="sr-only" for="role-' + u.id + '">Role for ' + esc(u.name) + '</label><select id="role-' + u.id + '" data-role="' + u.id + '">' + ['reader', 'creator', 'admin'].map(function (r) { return '<option' + (r === u.role ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></td>' +
+            '<td><span class="pill ' + (u.status === 'active' ? 'free' : u.status === 'suspended' ? 'sched' : 'fail') + '">' + u.status.toUpperCase() + '</span></td>' +
+            '<td style="white-space:nowrap">' + I.date(u.joined) + '</td>' +
+            '<td><div class="row-actions">' +
+              (u.status === 'banned' ? '<button type="button" class="mini" data-u="unban" data-id="' + u.id + '">Unban</button>'
+                : '<button type="button" class="mini" data-u="' + (u.status === 'suspended' ? 'unsuspend' : 'suspend') + '" data-id="' + u.id + '">' + (u.status === 'suspended' ? 'Unsuspend' : 'Suspend') + '</button><button type="button" class="mini warn" data-u="ban" data-id="' + u.id + '">Ban</button>') +
+              '<button type="button" class="mini" data-u="revoke" data-id="' + u.id + '">Revoke sessions</button></div></td></tr>';
+        }), 'No users match.') + '</div>';
+      var uq = el.querySelector('#uq');
+      uq.addEventListener('input', function () { ui.userQ = uq.value; section(); var x = document.getElementById('uq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); });
+      el.querySelector('#ur').addEventListener('change', function (e) { ui.userRole = e.target.value; section(); document.getElementById('ur').focus(); });
+    }
+
+    if (tab === 'content') {
+      var open = a.reports.filter(function (r) { return r.status === 'open'; });
+      el.innerHTML = '<h1 class="page-title">Content</h1>' +
+        '<div class="panel"><div class="panel-head"><div><h2>Series</h2><p>Featured series show on the home page.</p></div></div>' +
+          table(['Series', 'Creator', 'Visibility', 'Home page', 'Actions'], I.SERIES.map(function (x) {
+            var feat = a.featured.indexOf(x.slug) > -1, off = a.unpublished.indexOf(x.slug) > -1;
+            return '<tr><td><b>' + esc(x.title) + '</b><br><span class="hint">' + esc(x.genres.join(' · ')) + '</span></td><td>' + esc(x.creator) + '</td>' +
+              '<td><span class="pill ' + (off ? 'fail' : 'free') + '">' + (off ? 'UNPUBLISHED' : 'PUBLISHED') + '</span></td>' +
+              '<td>' + (feat ? '<span class="pill sched">FEATURED</span>' : '<span class="hint">—</span>') + '</td>' +
+              '<td><div class="row-actions"><button type="button" class="mini" data-c="feature" data-id="' + x.slug + '">' + (feat ? 'Unfeature' : 'Feature') + '</button>' +
+              '<button type="button" class="mini' + (off ? '' : ' warn') + '" data-c="' + (off ? 'republish' : 'unpublish') + '" data-id="' + x.slug + '">' + (off ? 'Republish' : 'Unpublish') + '</button></div></td></tr>';
+          }), '') + '</div>' +
+        '<div class="panel"><div class="panel-head"><div><h2>Reports</h2><p>' + open.length + ' waiting for review</p></div></div>' +
+          table(['Comment', 'Where', 'Reason', 'Actions'], open.map(function (r) {
+            var x = I.bySlug(r.series);
+            return '<tr><td style="max-width:300px">“' + esc(r.text) + '”<br><span class="hint">reported by ' + esc(r.by) + '</span></td><td style="white-space:nowrap">' + esc(x.title) + ' · Ep. ' + r.ep + '</td><td><span class="pill fail">' + r.reason.toUpperCase() + '</span></td>' +
+              '<td><div class="row-actions"><button type="button" class="mini warn" data-r="hide" data-id="' + r.id + '">Hide comment</button><button type="button" class="mini" data-r="dismiss" data-id="' + r.id + '">Dismiss</button></div></td></tr>';
+          }), 'All caught up. No open reports.') + '</div>';
+    }
+
+    if (tab === 'payments') {
+      var pq = ui.payQ.toLowerCase();
+      var pays = a.payments.filter(function (p) { return !pq || (p.email + ' ' + p.txn).toLowerCase().indexOf(pq) > -1; });
+      var mm = a.mismatches.filter(function (m) { return m.status === 'open'; });
+      el.innerHTML = '<h1 class="page-title">Payments</h1>' +
+        '<div class="panel"><div class="panel-head"><div><h2>Transactions</h2><p>Refunds go through ABA PayWay.</p></div></div>' +
+          '<div class="toolbar"><div class="field"><label for="pq" class="sr-only">Search payments</label><input id="pq" type="search" placeholder="Search by email or transaction ID" value="' + esc(ui.payQ) + '"></div></div>' +
+          table(['Date', 'User', 'Plan', 'Amount', 'Status', 'Transaction', ''], pays.map(function (p) {
+            return '<tr><td style="white-space:nowrap">' + I.date(p.at) + '</td><td>' + esc(p.email) + '</td><td>' + p.plan + '</td><td>' + I.money(p.amount) + '</td><td>' + payPill(p.status) + '</td><td style="font-family:monospace">' + p.txn + '</td>' +
+              '<td>' + (p.status === 'Succeeded' ? '<button type="button" class="mini warn" data-p="refund" data-id="' + p.txn + '">Refund</button>' : '') + '</td></tr>';
+          }), 'No payments match.') + '</div>' +
+        '<div class="panel"><div class="panel-head"><div><h2>Reconciliation</h2><p>Yesterday\'s payments compared with PayWay\'s transaction list.</p></div><span class="pill ' + (mm.length ? 'fail' : 'free') + '">' + (mm.length ? mm.length + ' OPEN' : 'ALL MATCHED') + '</span></div>' +
+          table(['Transaction', 'Problem', 'Amount', ''], mm.map(function (m) {
+            return '<tr><td style="font-family:monospace">' + m.txn + '</td><td>' + esc(m.issue) + '</td><td>' + I.money(m.amount) + '</td><td><button type="button" class="mini" data-m="recheck" data-id="' + m.txn + '">' + (m.checking ? 'Checking…' : 'Recheck with PayWay') + '</button></td></tr>';
+          }), 'Everything matches.') + '</div>' +
+        '<div class="panel"><div class="panel-head"><div><h2>Complimentary subscription</h2><p>Free Premium for press, creators or support cases.</p></div></div>' +
+          '<form id="compForm" novalidate style="flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:12px"><div class="field" style="flex:2 1 220px"><label for="compEmail">User email</label><input id="compEmail" type="email" placeholder="name@example.com"></div>' +
+          '<div class="field" style="flex:1 1 140px"><label for="compLen">Length</label><select id="compLen"><option value="1">1 month</option><option value="3">3 months</option><option value="12">12 months</option></select></div>' +
+          '<button type="submit" class="btn btn-sm">Grant</button></form></div>';
+      var pqi = el.querySelector('#pq');
+      pqi.addEventListener('input', function () { ui.payQ = pqi.value; section(); var x = document.getElementById('pq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); });
+      el.querySelector('#compForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var em = el.querySelector('#compEmail'), len = el.querySelector('#compLen').value;
+        if (!em.value || !em.checkValidity()) { em.focus(); I.toast('Enter a valid email'); return; }
+        if (!a.users.some(function (u) { return u.email === em.value; })) { em.focus(); I.toast('No user with that email'); return; }
+        commit('subscription.comp_granted', em.value, len + ' month(s)', 'Granted ' + len + ' month(s) of Premium to ' + em.value);
+      });
+    }
+
+    if (tab === 'plans') {
+      el.innerHTML = '<h1 class="page-title">Plans</h1>' +
+        '<div class="panel"><div class="panel-head"><div><h2>Subscription plans</h2><p>Price changes apply to new subscriptions only. Current subscribers keep their price.</p></div></div>' +
+          table(['Plan', 'Interval', 'Price (USD)', 'Active', ''], a.plans.map(function (p, i) {
+            return '<tr><td><b>' + esc(p.name) + '</b><br><span class="hint">' + p.code + '</span></td><td>' + p.interval + '</td>' +
+              '<td><label class="sr-only" for="price-' + i + '">Price for ' + esc(p.name) + '</label><input id="price-' + i + '" data-price="' + i + '" inputmode="decimal" value="' + (p.priceMinor / 100).toFixed(2) + '" style="width:96px;min-height:36px;border:2px solid #111;border-radius:9px;padding:0 8px;font:inherit;font-size:13px"></td>' +
+              '<td><input type="checkbox" class="toggle" data-active="' + i + '" aria-label="' + esc(p.name) + ' plan active"' + (p.active ? ' checked' : '') + '></td>' +
+              '<td><button type="button" class="mini" data-save="' + i + '">Save</button></td></tr>';
+          }), '') + '</div>' +
+        '<div class="panel"><div class="panel-head"><div><h2>New plan</h2><p>For promos or regional pricing.</p></div></div>' +
+          '<form id="planForm" novalidate style="flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:12px">' +
+          '<div class="field" style="flex:2 1 180px"><label for="npName">Name</label><input id="npName" placeholder="Student monthly"></div>' +
+          '<div class="field" style="flex:1 1 120px"><label for="npInt">Interval</label><select id="npInt"><option value="month">month</option><option value="year">year</option></select></div>' +
+          '<div class="field" style="flex:1 1 120px"><label for="npPrice">Price (USD)</label><input id="npPrice" inputmode="decimal" placeholder="2.99"></div>' +
+          '<button type="submit" class="btn btn-sm">Create plan</button></form></div>';
+      el.querySelectorAll('[data-save]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var i = +b.dataset.save, p = a.plans[i], v = el.querySelector('[data-price="' + i + '"]').value.trim();
+          if (!/^\d+(\.\d{1,2})?$/.test(v) || +v <= 0) { I.toast('Enter a price like 4.99'); return; }
+          var minor = Math.round(parseFloat(v) * 100), active = el.querySelector('[data-active="' + i + '"]').checked;
+          if (minor === p.priceMinor && active === p.active) { I.toast('Nothing changed'); return; }
+          I.confirmAction('Save ' + esc(p.name) + '?', 'New price ' + I.money(minor) + '/' + p.interval + (active ? '' : ', hidden from the plans page') + '. Existing subscribers keep ' + I.money(p.priceMinor) + '.', 'Save plan', function () {
+            var meta = I.money(p.priceMinor) + ' → ' + I.money(minor) + (active !== p.active ? (active ? ', activated' : ', deactivated') : '');
+            p.priceMinor = minor; p.active = active;
+            commit('plan.updated', p.code, meta, 'Plan saved');
+          });
+        });
+      });
+      el.querySelector('#planForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = el.querySelector('#npName').value.trim(), v = el.querySelector('#npPrice').value.trim(), interval = el.querySelector('#npInt').value;
+        if (name.length < 2) { el.querySelector('#npName').focus(); I.toast('Give the plan a name'); return; }
+        if (!/^\d+(\.\d{1,2})?$/.test(v) || +v <= 0) { el.querySelector('#npPrice').focus(); I.toast('Enter a price like 2.99'); return; }
+        var code = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        if (a.plans.some(function (p) { return p.code === code; })) { I.toast('A plan with that name exists'); return; }
+        a.plans.push({ code: code, name: name, interval: interval, priceMinor: Math.round(parseFloat(v) * 100), active: true });
+        commit('plan.created', code, '$' + v + '/' + interval, 'Plan created');
+      });
+    }
+
+    if (tab === 'audit') {
+      var log = I.state.audit || [], aq = ui.auditQ.toLowerCase();
+      var rows = log.filter(function (r) { return (ui.auditKind === 'all' || r.action.indexOf(ui.auditKind) === 0) && (!aq || (r.actor + ' ' + r.action + ' ' + r.target + ' ' + r.meta).toLowerCase().indexOf(aq) > -1); });
+      el.innerHTML = '<h1 class="page-title">Audit log</h1><div class="panel">' +
+        '<div class="toolbar"><div class="field"><label for="aq" class="sr-only">Search log</label><input id="aq" type="search" placeholder="Search actor, action or target" value="' + esc(ui.auditQ) + '"></div>' +
+        '<div class="field" style="flex:0 0 180px"><label for="ak" class="sr-only">Action type</label><select id="ak">' + [['all', 'All actions'], ['user', 'Users'], ['content', 'Content'], ['payment', 'Payments'], ['subscription', 'Subscriptions'], ['plan', 'Plans']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === ui.auditKind ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div></div>' +
+        table(['When', 'Admin', 'Action', 'Target', 'Details'], rows.map(function (r) {
+          return '<tr><td style="white-space:nowrap">' + new Date(r.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</td><td>' + esc(r.actor) + '</td><td style="font-family:monospace;font-size:12px">' + esc(r.action) + '</td><td>' + esc(r.target) + '</td><td>' + esc(r.meta) + '</td></tr>';
+        }), log.length ? 'No entries match.' : 'No admin actions yet. Every action you take in this area is recorded here.') + '</div>';
+      var aqi = el.querySelector('#aq');
+      aqi.addEventListener('input', function () { ui.auditQ = aqi.value; section(); var x = document.getElementById('aq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); });
+      el.querySelector('#ak').addEventListener('change', function (e) { ui.auditKind = e.target.value; section(); document.getElementById('ak').focus(); });
+    }
+  }
+
+  /* ---------- actions ---------- */
+  main.addEventListener('change', function (e) {
+    var sel = e.target.closest('[data-role]');
+    if (!sel) return;
+    var a = A(), u = a.users.find(function (x) { return x.id === sel.dataset.role; }), to = sel.value, from = u.role;
+    sel.value = from; // only changes after confirming
+    I.confirmAction('Change role?', esc(u.name) + ' goes from <b>' + from + '</b> to <b>' + to + '</b>.' + (to === 'admin' ? ' They will need 2FA before opening the admin area.' : ''), 'Change role', function () {
+      u.role = to; commit('user.role_changed', u.email, from + ' → ' + to, 'Role updated');
+    });
+  });
+
+  main.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tab]');
+    if (t) { tab = t.dataset.tab; history.replaceState(null, '', '#' + tab); section(); t.focus(); return; }
+    var a = A(), b;
+
+    if ((b = e.target.closest('[data-u]'))) {
+      var u = a.users.find(function (x) { return x.id === b.dataset.id; }), act = b.dataset.u;
+      if (act === 'suspend') I.confirmAction('Suspend ' + esc(u.name) + '?', 'They can\'t log in until you unsuspend them. Their content stays up.', 'Suspend', function () { u.status = 'suspended'; commit('user.suspended', u.email, '', 'User suspended'); });
+      if (act === 'unsuspend') { u.status = 'active'; commit('user.unsuspended', u.email, '', 'User restored'); }
+      if (act === 'ban') I.confirmAction('Ban ' + esc(u.name) + '?', 'This blocks the account and logs them out everywhere.', 'Ban user', function () { u.status = 'banned'; commit('user.banned', u.email, 'sessions revoked', 'User banned'); });
+      if (act === 'unban') I.confirmAction('Unban ' + esc(u.name) + '?', 'They\'ll be able to log in again.', 'Unban', function () { u.status = 'active'; commit('user.unbanned', u.email, '', 'User unbanned'); });
+      if (act === 'revoke') I.confirmAction('Revoke sessions?', esc(u.name) + ' will be logged out on every device.', 'Revoke', function () { commit('user.sessions_revoked', u.email, '', 'Sessions revoked'); });
+      return;
+    }
+    if ((b = e.target.closest('[data-c]'))) {
+      var slug = b.dataset.id, x = I.bySlug(slug);
+      if (b.dataset.c === 'feature') {
+        var on = a.featured.indexOf(slug) > -1;
+        a.featured = on ? a.featured.filter(function (s) { return s !== slug; }) : a.featured.concat(slug);
+        commit(on ? 'content.unfeatured' : 'content.featured', x.title, '', on ? 'Removed from home page' : 'Featured on home page');
+      }
+      if (b.dataset.c === 'unpublish') I.confirmAction('Unpublish ' + esc(x.title) + '?', 'Readers won\'t be able to find or read it until it\'s republished.', 'Unpublish', function () {
+        a.unpublished.push(slug); commit('content.unpublished', x.title, '', 'Series unpublished');
+      });
+      if (b.dataset.c === 'republish') { a.unpublished = a.unpublished.filter(function (s) { return s !== slug; }); commit('content.republished', x.title, '', 'Series is live again'); }
+      return;
+    }
+    if ((b = e.target.closest('[data-r]'))) {
+      var r = a.reports.find(function (x) { return x.id === b.dataset.id; });
+      if (b.dataset.r === 'hide') I.confirmAction('Hide this comment?', 'It disappears for everyone. The author can still see it was hidden.', 'Hide comment', function () { r.status = 'hidden'; commit('content.comment_hidden', I.bySlug(r.series).title + ' ep. ' + r.ep, r.reason, 'Comment hidden'); });
+      else { r.status = 'dismissed'; commit('content.report_dismissed', I.bySlug(r.series).title + ' ep. ' + r.ep, r.reason, 'Report dismissed'); }
+      return;
+    }
+    if ((b = e.target.closest('[data-p]'))) {
+      var p = a.payments.find(function (x) { return x.txn === b.dataset.id; });
+      I.confirmAction('Refund ' + I.money(p.amount) + '?', 'Sends a refund for <b>' + p.txn + '</b> (' + esc(p.email) + ') through ABA PayWay. This can\'t be undone.', 'Refund ' + I.money(p.amount), function () {
+        p.status = 'Refunded'; commit('payment.refunded', p.txn, I.money(p.amount) + ' to ' + p.email, 'Refund sent (demo)');
+      });
+      return;
+    }
+    if ((b = e.target.closest('[data-m]'))) {
+      var m = a.mismatches.find(function (x) { return x.txn === b.dataset.id; });
+      if (m.checking) return;
+      m.checking = true; section();
+      setTimeout(function () {
+        m.checking = false; m.status = 'resolved';
+        commit('payment.reconciled', m.txn, 'fresh status check confirmed: ' + m.issue, 'Fixed after a fresh PayWay status check');
+      }, 1200);
+    }
+  });
+
+  window.addEventListener('hashchange', function () { tab = location.hash.slice(1); shell(); });
+  var gateKey = function () { var u = I.state.user; return u ? u.role + (u.twoFA ? '+2fa' : '') : 'out'; }, lastKey = gateKey();
+  I.onChange(function () { if (gateKey() !== lastKey) { lastKey = gateKey(); shell(); } else section(); });
+  shell();
+})();
+</script>
+</body>
+</html>

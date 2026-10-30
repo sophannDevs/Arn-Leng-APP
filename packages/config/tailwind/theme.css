@@ -1,0 +1,26 @@
+/*
+ * Inkline design tokens (from the approved Comix-style prototype in design/prototype).
+ * Import after `@import "tailwindcss";`. Font variables come from next/font in the web app.
+ */
+@theme inline {
+  --color-brand: #d91e1e;
+  --color-brand-dark: #b91717;
+  --color-pop: #ffd60a;
+  --color-ink: #111111;
+  --color-text: #1a1a1a;
+  --color-muted: #4a4a4a;
+  --color-soft: #666666;
+  --color-paper: #efebe5;
+  --color-paper-2: #e4e1dc;
+
+  --font-sans: var(--font-poppins), system-ui, sans-serif;
+  --font-display: var(--font-barlow), Impact, sans-serif;
+  --font-comic: var(--font-bangers), Impact, sans-serif;
+
+  --radius-card: 14px;
+  --radius-panel: 18px;
+
+  --shadow-pop: 5px 6px 0 #111111;
+  --shadow-pop-red: 6px 8px 0 #d91e1e;
+  --shadow-cta: 0 8px 18px rgb(217 30 30 / 0.3);
+}
