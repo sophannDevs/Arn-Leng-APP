@@ -1,5 +1,4 @@
 import 'server-only';
-import { series } from '@inkline/db';
 import {
   type AuthzRequirement,
   type UserRole,
@@ -7,12 +6,11 @@ import {
   authorize,
   canManageSeries,
 } from '@inkline/shared';
-import { eq } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { forbidden, notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 import { z } from 'zod';
-import { db } from '../db';
+import { findEpisodeWithSeries, findSeries } from '../studio/queries';
 import { auth } from './auth';
 
 export type SessionUser = {
@@ -81,17 +79,19 @@ export function requireRole(...roles: UserRole[]) {
  * The user must be an admin, or a creator who owns the series. Anyone else gets a 403, including
  * when the series doesn't exist (so ids can't be probed); admins get a 404 for a missing series.
  */
-export async function requireSeriesOwner(seriesId: string) {
+export async function requireSeriesOwner(seriesId: unknown) {
   const user = await requireRole('creator', 'admin');
-  const id = z.uuid().safeParse(seriesId);
-  const [row] = id.success
-    ? await db
-        .select({ id: series.id, creatorId: series.creatorId })
-        .from(series)
-        .where(eq(series.id, id.data))
-        .limit(1)
-    : [];
-  if (!row) return user.role === 'admin' ? notFound() : forbidden();
-  if (!canManageSeries(user, row.creatorId)) return forbidden();
-  return { user, series: row };
+  const series = await findSeries(seriesId);
+  if (!series) return user.role === 'admin' ? notFound() : forbidden();
+  if (!canManageSeries(user, series.creatorId)) return forbidden();
+  return { user, series };
+}
+
+/** Same rule for an episode: the user must manage the series it belongs to. */
+export async function requireEpisodeOwner(episodeId: unknown) {
+  const user = await requireRole('creator', 'admin');
+  const found = await findEpisodeWithSeries(episodeId);
+  if (!found) return user.role === 'admin' ? notFound() : forbidden();
+  if (!canManageSeries(user, found.series.creatorId)) return forbidden();
+  return { user, ...found };
 }

@@ -4,6 +4,8 @@ import {
   PLAN_PRICES,
   type SeriesStatus,
   type UserRole,
+  EARLY_ACCESS_DAYS,
+  FREE_EPISODES,
   defaultEpisodeAccess,
 } from '@inkline/shared';
 import { hashPassword } from 'better-auth/crypto';
@@ -139,6 +141,7 @@ const allTables = [
   s.comments,
   s.likes,
   s.follows,
+  s.episodeUploads,
   s.episodeImages,
   s.episodes,
   s.series,
@@ -208,6 +211,7 @@ try {
           status: 'published' as const,
           publishedAt,
           ...defaultEpisodeAccess(number, publishedAt),
+          earlyAccessDays: number > FREE_EPISODES ? EARLY_ACCESS_DAYS : null,
         };
       });
 
@@ -217,8 +221,9 @@ try {
         if (!episode) throw new Error(`Episode ${number} missing`);
         return episode;
       };
-      if (seriesIndex === 1) Object.assign(special(7), { accessType: 'free', freeAfter: null }); // permanently free
-      if (seriesIndex === 3) Object.assign(special(8), { freeAfter: null }); // permanently subscriber-only
+      if (seriesIndex === 1)
+        Object.assign(special(7), { accessType: 'free', freeAfter: null, earlyAccessDays: null }); // permanently free
+      if (seriesIndex === 3) Object.assign(special(8), { freeAfter: null, earlyAccessDays: null }); // permanently subscriber-only
       if (seriesIndex === 5) {
         // Scheduled, not yet published: readers must not see it.
         Object.assign(special(10), {

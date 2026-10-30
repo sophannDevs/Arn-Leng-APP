@@ -5,16 +5,20 @@ import { useTranslations } from 'next-intl';
 import { type FormEvent, useState } from 'react';
 import { SubmitButton } from '@/components/submit-button';
 import { Field, FormMessage } from '@/components/ui';
+import { ImageUploader } from '@/components/studio/image-uploader';
 import { updateProfileAction } from '@/server/actions/account';
+import { setAvatarAction } from '@/server/actions/studio';
 
 export function ProfileForm({
   name,
   email,
   locale,
+  avatarUrl,
 }: {
   name: string;
   email: string;
   locale: string;
+  avatarUrl: string | null;
 }) {
   const t = useTranslations('account.profile');
   const [pending, setPending] = useState(false);
@@ -37,15 +41,13 @@ export function ProfileForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <span
-          aria-hidden="true"
-          className="grid size-16 flex-none place-items-center rounded-full border-2 border-ink bg-pop font-display text-3xl font-semibold"
-        >
-          {name.trim().charAt(0).toUpperCase() || '?'}
-        </span>
-        <p className="m-0 text-[13px] text-muted">{t('avatarSoon')}</p>
-      </div>
+      <ImageUploader
+        kind="avatar"
+        currentUrl={avatarUrl}
+        save={setAvatarAction}
+        label={t('avatar')}
+        shape="round"
+      />
       <Field
         id="name"
         label={t('name')}

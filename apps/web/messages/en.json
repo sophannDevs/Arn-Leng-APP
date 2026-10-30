@@ -129,7 +129,7 @@
       "save": "Save changes",
       "saved": "Saved.",
       "invalid": "Check the fields and try again.",
-      "avatarSoon": "Profile pictures can be uploaded once image uploads launch."
+      "avatar": "Profile picture"
     },
     "password": {
       "title": "Password",
@@ -182,10 +182,176 @@
     "notAllowed": "Your account can't become a creator."
   },
   "studio": {
+    "navLabel": "Studio navigation",
     "title": "Creator studio",
-    "lead": "You have {count, plural, =0 {no series} one {# series} other {# series}}.",
-    "soon": "Series and episode tools are coming soon.",
-    "account": "Back to account"
+    "account": "Account",
+    "newSeries": "New series",
+    "lead": "{count, plural, =0 {You have no series yet.} one {You have # series.} other {You have # series.}}",
+    "empty": "Create your first series to start publishing episodes.",
+    "noCover": "No cover",
+    "published": "Published",
+    "unpublished": "Not published yet",
+    "episodeCounts": "{total, plural, =0 {No episodes} one {# episode} other {# episodes}} · {published} published",
+    "by": "By {name}",
+    "seriesStatuses": {
+      "ongoing": "Ongoing",
+      "completed": "Completed",
+      "hiatus": "On hiatus"
+    },
+    "series": {
+      "detailsTitle": "Series details",
+      "coverAfter": "You can add a cover image right after you create the series.",
+      "coverTitle": "Cover",
+      "cover": "Cover image",
+      "title": "Title",
+      "slug": "Web address",
+      "slugHint": "Lowercase letters, numbers and dashes. The series lives at inkline.com/series/your-address.",
+      "description": "Description",
+      "genres": "Genres",
+      "genresHint": "Pick up to 5.",
+      "genreNames": {
+        "action": "Action",
+        "comedy": "Comedy",
+        "drama": "Drama",
+        "fantasy": "Fantasy",
+        "horror": "Horror",
+        "mystery": "Mystery",
+        "romance": "Romance",
+        "sci-fi": "Sci-fi",
+        "slice-of-life": "Slice of life",
+        "sports": "Sports",
+        "thriller": "Thriller"
+      },
+      "status": "Status",
+      "statuses": {
+        "ongoing": "Ongoing",
+        "completed": "Completed",
+        "hiatus": "On hiatus"
+      },
+      "ageRating": "Age rating",
+      "ageRatings": {
+        "all": "All ages",
+        "teen": "Teen",
+        "mature": "Mature"
+      },
+      "language": "Language",
+      "languages": {
+        "en": "English"
+      },
+      "isPublished": "Publish this series",
+      "isPublishedHint": "Readers can find a published series once it has a published episode.",
+      "create": "Create series",
+      "save": "Save changes",
+      "saved": "Saved.",
+      "invalid": "Check the fields: a title, and a web address of 3 to 60 lowercase letters, numbers and dashes.",
+      "slugTaken": "That web address is already used by another series. Try a different one.",
+      "noAccess": "You don't have permission to change this series."
+    },
+    "episodes": {
+      "title": "Episodes",
+      "count": "{count, plural, =0 {No episodes yet} one {# episode} other {# episodes}}",
+      "new": "New episode",
+      "empty": "No episodes yet. Create the first one.",
+      "number": "#",
+      "status": "Status",
+      "access": "Access",
+      "scheduled": "Publish on",
+      "actions": "Actions",
+      "moveUp": "Move episode {n} up",
+      "moveDown": "Move episode {n} down",
+      "delete": "Delete episode {n}",
+      "deleteShort": "Delete",
+      "confirmDelete": "Confirm delete",
+      "cannotMove": "This episode can't move there: published and processing episodes keep their numbers.",
+      "locked": "This episode can't be changed any more.",
+      "failed": "Something went wrong. Try again.",
+      "noAccess": "You don't have permission to change this series.",
+      "statuses": {
+        "draft": "Draft",
+        "processing": "Processing",
+        "published": "Published",
+        "failed": "Failed"
+      },
+      "accessModes": {
+        "free": "Free",
+        "early_access": "Subscribers first",
+        "subscribers_only": "Subscribers only"
+      },
+      "titleColumn": "Title"
+    },
+    "episode": {
+      "heading": "Episode {number}",
+      "statusNotice": "This episode is {status}, so it can't be edited.",
+      "detailsTitle": "Episode details",
+      "title": "Title",
+      "access": "Who can read it",
+      "accessModes": {
+        "free": "Free for everyone",
+        "early_access": "Subscribers first",
+        "subscribers_only": "Subscribers only"
+      },
+      "accessModeHints": {
+        "free": "Anyone can read it as soon as it is published.",
+        "early_access": "Subscribers read it first. It becomes free 7 days after publishing.",
+        "subscribers_only": "Only subscribers can read it, always."
+      },
+      "scheduledAt": "Publish on (optional)",
+      "scheduledAtHint": "In your local time. Leave empty to publish as soon as the pages are processed.",
+      "save": "Save details",
+      "saved": "Saved.",
+      "invalid": "Enter a title.",
+      "scheduleInPast": "Pick a publish time in the future.",
+      "locked": "This episode can't be changed any more.",
+      "noAccess": "You don't have permission to change this episode.",
+      "thumbnailTitle": "Thumbnail",
+      "thumbnail": "Episode thumbnail",
+      "pagesTitle": "Pages",
+      "pagesLead": "Upload the episode's images in reading order, then submit them for processing."
+    },
+    "upload": {
+      "none": "None",
+      "choose": "Choose image",
+      "replace": "Replace image",
+      "progress": "Upload progress",
+      "saved": "Image saved.",
+      "failed": "The upload failed. Try again.",
+      "rateLimited": "Too many uploads at once. Wait a minute and try again.",
+      "problems": {
+        "type": "Only JPEG, PNG and WebP images are accepted.",
+        "size": "This file is too big (the limit is 20 MB).",
+        "width": "This image is wider than 2000 px.",
+        "unreadable": "This file isn't a readable image."
+      },
+      "dropHere": "Drop page images here",
+      "rules": "JPEG, PNG or WebP · up to {size} MB each · up to {width} px wide",
+      "pickFiles": "Choose page images",
+      "pageList": "Pages in reading order",
+      "noPreview": "No preview",
+      "status": {
+        "queued": "Waiting",
+        "uploading": "Uploading…",
+        "uploaded": "Uploaded",
+        "error": "Failed"
+      },
+      "errors": {
+        "failed": "Upload failed",
+        "rateLimited": "Too many uploads at once"
+      },
+      "retry": "Retry",
+      "moveUp": "Move page {n} up",
+      "moveDown": "Move page {n} down",
+      "remove": "Remove page {n}",
+      "tooMany": "An episode can have up to {max} pages.",
+      "submit": "Submit {count, plural, one {# page} other {# pages}} for processing",
+      "submitting": "Submitting…",
+      "submitHint": "Wait for every page to finish uploading (retry any that failed).",
+      "submitErrors": {
+        "incomplete": "Some pages haven't finished uploading. Retry them and submit again.",
+        "locked": "This episode was already submitted.",
+        "queueFailed": "We couldn't start processing. Try again in a moment.",
+        "generic": "Something went wrong. Try again."
+      }
+    }
   },
   "admin": {
     "title": "Admin",

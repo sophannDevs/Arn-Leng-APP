@@ -26,3 +26,17 @@ export const AUTH_IP_RATE_LIMIT = { maxAttempts: 20, windowSeconds: 10 * 60 } as
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
+
+/** Uploads. The worker (Phase 4) re-checks everything here against the real file bytes. */
+export const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export type ImageMimeType = (typeof IMAGE_MIME_TYPES)[number];
+export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+export const MAX_IMAGE_WIDTH = 2000;
+/** Pages (images) in one episode. */
+export const MAX_EPISODE_PAGES = 150;
+/** Files one presign request may ask for. */
+export const MAX_FILES_PER_PRESIGN = 50;
+/** Presigned upload URLs stop working after this long. */
+export const PRESIGN_EXPIRES_SECONDS = 10 * 60;
+/** Presigned URLs a user may request per window. */
+export const UPLOAD_URL_RATE_LIMIT = { maxAttempts: 300, windowSeconds: 10 * 60 } as const;

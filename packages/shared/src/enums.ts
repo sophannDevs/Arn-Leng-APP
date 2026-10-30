@@ -40,3 +40,25 @@ export type PaymentProviderId = (typeof PAYMENT_PROVIDERS)[number];
 
 export const PAYMENT_STATUSES = ['pending', 'succeeded', 'failed', 'refunded'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+/** What a creator can pick as an episode's access (the database stores access_type + early_access_days). */
+export const EPISODE_ACCESS_MODES = ['free', 'early_access', 'subscribers_only'] as const;
+export type EpisodeAccessMode = (typeof EPISODE_ACCESS_MODES)[number];
+
+export const UPLOAD_STATUSES = ['pending', 'uploaded'] as const;
+export type UploadStatus = (typeof UPLOAD_STATUSES)[number];
+
+export const GENRES = [
+  'action',
+  'comedy',
+  'drama',
+  'fantasy',
+  'horror',
+  'mystery',
+  'romance',
+  'sci-fi',
+  'slice-of-life',
+  'sports',
+  'thriller',
+] as const;
+export type Genre = (typeof GENRES)[number];

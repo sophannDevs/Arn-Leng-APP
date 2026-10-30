@@ -13,7 +13,7 @@ The full spec, stack and rules are in [CLAUDE.md](CLAUDE.md). The approved stati
 | `packages/db`        | Drizzle schema, migrations (`drizzle/`), seed script                       |
 | `packages/shared`    | Business constants, Zod schemas, shared types, access rules                |
 | `packages/payments`  | PaymentProvider interface and ABA PayWay (Phases 7–8)                      |
-| `packages/storage`   | R2/S3 helpers (Phase 3)                                                    |
+| `packages/storage`   | S3/R2 helpers: object keys, presigned uploads, object checks               |
 | `packages/config`    | Shared TypeScript, ESLint, Prettier and Tailwind theme                     |
 | `docker-compose.yml` | PostgreSQL, Redis and MinIO for local development                          |
 
@@ -58,6 +58,16 @@ The schema lives in `packages/db/src/schema` (one file per area: users, content,
 - `pnpm db:studio` opens Drizzle Studio to browse the data.
 
 The episode access rule (who may read what) is `getEpisodeAccess` in `packages/shared/src/access.ts`, with its tests next to it.
+
+## Creator studio and uploads
+
+Creators and admins manage their work at `/studio`: create and edit a series (title, web address, description, genres, status, age rating, language, cover), then add episodes. An episode has a title, an access setting (free, subscribers first for 7 days, or subscribers only; the first 3 episodes default to free), an optional publish time, a thumbnail and its pages. Drafts can be reordered (they swap numbers with the neighbouring draft) and deleted; published episodes keep their numbers.
+
+- **Uploads never pass through the web server.** The browser asks `POST /api/uploads/presign` for presigned PUT URLs and uploads straight to MinIO (Cloudflare R2 in production). The endpoint checks that you're signed in, own the target series or episode, and that each file is a JPEG, PNG or WebP of at most 20 MB; the file type and exact size are part of the signed URL, so storage rejects anything else. URLs expire after 10 minutes, and each user may request 300 URLs per 10 minutes.
+- **Where files go.** Episode pages: private bucket, `uploads/{episodeId}/{uuid}.{ext}`. Covers, thumbnails and avatars: public bucket (`covers/`, `thumbnails/`, `avatars/`). The public bucket's address is `S3_PUBLIC_BASE_URL` (defaults to MinIO).
+- **Submitting an episode** checks every page really is in storage, fixes the page order, sets the episode to `processing` and queues a `process-episode` job. The worker receives it today but only logs it: turning the pages into optimized images and publishing the episode is Phase 4.
+- **Permissions.** Every studio server action calls `requireSeriesOwner` / `requireEpisodeOwner` first, so only the series owner or an admin can change a series or its episodes, even when an action is called directly. `apps/web/src/server/actions/studio.test.ts` and the Playwright test "a creator cannot open or change another creator's series" prove it.
+- **Browser uploads need CORS on the bucket.** MinIO allows all origins by default. For Cloudflare R2, add a CORS policy to both buckets allowing `PUT` (and `GET`/`HEAD`) from your site's origin with the `Content-Type` header.
 
 ## Authentication and roles
 
@@ -115,7 +125,7 @@ The build follows the phase plan in the project's build prompt. Each phase ends 
 - [x] Phase 0: project setup
 - [x] Phase 1: database and access rule
 - [x] Phase 2: authentication and roles
-- [ ] Phase 3: creator studio and uploads
+- [x] Phase 3: creator studio and uploads
 - [ ] Phases 4–11: images, public site and reader, engagement, subscriptions, PayWay, security, admin, deployment
 
 # Arn-Leng-APP

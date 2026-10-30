@@ -2,6 +2,7 @@ import './load-env';
 import { Worker } from 'bullmq';
 import { parseWorkerEnv } from './env';
 import { processExampleJob } from './jobs/example';
+import { processEpisodeJob } from './jobs/process-episode';
 import { QUEUES } from './queues';
 import { createRedisConnection } from './redis';
 
@@ -10,6 +11,10 @@ const connection = createRedisConnection(env.REDIS_URL);
 
 const workers = [
   new Worker(QUEUES.example, (job) => processExampleJob(job.data), {
+    connection,
+    concurrency: env.WORKER_CONCURRENCY,
+  }),
+  new Worker(QUEUES.processEpisode, (job) => processEpisodeJob(job.data), {
     connection,
     concurrency: env.WORKER_CONCURRENCY,
   }),

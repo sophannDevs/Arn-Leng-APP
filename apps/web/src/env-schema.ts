@@ -17,6 +17,8 @@ export const webEnvSchema = z
     S3_SECRET_ACCESS_KEY: z.string().min(1),
     S3_BUCKET_PRIVATE: z.string().min(3),
     S3_BUCKET_PUBLIC: z.string().min(3),
+    // Address the public bucket is served from (the CDN in production). Defaults to the S3 endpoint.
+    S3_PUBLIC_BASE_URL: optional(z.url()),
 
     // Auth. The secret signs cookies and encrypts 2FA secrets: rotating it signs everyone out and
     // breaks 2FA. Generate one with `openssl rand -base64 32`.

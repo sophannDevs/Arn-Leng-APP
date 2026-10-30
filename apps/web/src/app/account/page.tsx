@@ -11,6 +11,7 @@ import { Logo } from '@/components/logo';
 import { FormMessage, Panel, linkClass } from '@/components/ui';
 import { requireUser } from '@/server/auth/session';
 import { db } from '@/server/db';
+import { publicUrl } from '@/server/storage';
 
 export default async function AccountPage() {
   // skipTwoFactor: this is the page where an admin sets 2FA up.
@@ -37,7 +38,19 @@ export default async function AccountPage() {
       {mustSetUpTwoFactor && <FormMessage kind="error">{t('twoFactor.mustSetUp')}</FormMessage>}
 
       <Panel title={t('profile.title')} description={t('profile.description')}>
-        <ProfileForm name={user.name} email={user.email} locale={user.locale} />
+        <ProfileForm
+          name={user.name}
+          email={user.email}
+          locale={user.locale}
+          // Uploaded avatars are storage keys; Google/Facebook photos are full URLs.
+          avatarUrl={
+            user.avatarKey
+              ? user.avatarKey.startsWith('https://')
+                ? user.avatarKey
+                : publicUrl(user.avatarKey)
+              : null
+          }
+        />
       </Panel>
 
       {hasPassword && (

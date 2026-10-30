@@ -29,7 +29,7 @@ vi.mock('../db', () => ({
 }));
 
 const { requireRole, requireSeriesOwner, requireUser, getCurrentUser } = await import('./session');
-const { getStudioOverviewAction, getAdminOverviewAction } = await import('../actions/overview');
+const { getAdminOverviewAction } = await import('../actions/overview');
 
 const SERIES_ID = '2f1c2f0e-7b0a-4c52-9a53-0d6a2d3f9a11';
 
@@ -105,17 +105,17 @@ describe('requireRole', () => {
   });
 });
 
-describe('studio and admin server actions', () => {
-  // These are the functions the pages and any direct POST to the action endpoint run.
-  it('reject a reader with a 403 when called directly', async () => {
+describe('admin server action', () => {
+  // The function the admin page and any direct POST to the action endpoint run.
+  it('rejects readers and creators with a 403 when called directly', async () => {
     signedInAs('reader');
-    await expect(getStudioOverviewAction()).rejects.toThrow('FORBIDDEN');
+    await expect(getAdminOverviewAction()).rejects.toThrow('FORBIDDEN');
+    signedInAs('creator');
     await expect(getAdminOverviewAction()).rejects.toThrow('FORBIDDEN');
   });
 
-  it('send a signed-out caller to /login', async () => {
+  it('sends a signed-out caller to /login', async () => {
     getSession.mockResolvedValue(null);
-    await expect(getStudioOverviewAction()).rejects.toThrow('REDIRECT /login');
     await expect(getAdminOverviewAction()).rejects.toThrow('REDIRECT /login');
   });
 });

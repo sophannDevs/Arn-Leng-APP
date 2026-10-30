@@ -1,2 +1,3 @@
-// @inkline/storage: R2/S3 helpers: presigned URLs and object keys. Arrives in Phase 3.
-export {};
+// @inkline/storage: S3/R2 helpers: object keys, presigned uploads and object checks.
+export * from './client';
+export * from './keys';

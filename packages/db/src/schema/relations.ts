@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { accounts, sessions, twoFactors } from './auth';
 import { payments, plans, subscriptions } from './billing';
-import { episodeImages, episodes, series } from './content';
+import { episodeImages, episodeUploads, episodes, series } from './content';
 import { comments, follows, likes, readingProgress } from './engagement';
 import { creatorProfiles, users } from './users';
 
@@ -34,6 +34,7 @@ export const seriesRelations = relations(series, ({ one, many }) => ({
 export const episodesRelations = relations(episodes, ({ one, many }) => ({
   series: one(series, { fields: [episodes.seriesId], references: [series.id] }),
   images: many(episodeImages),
+  uploads: many(episodeUploads),
   likes: many(likes),
   comments: many(comments),
 }));
@@ -79,4 +80,8 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
     fields: [payments.subscriptionId],
     references: [subscriptions.id],
   }),
+}));
+
+export const episodeUploadsRelations = relations(episodeUploads, ({ one }) => ({
+  episode: one(episodes, { fields: [episodeUploads.episodeId], references: [episodes.id] }),
 }));

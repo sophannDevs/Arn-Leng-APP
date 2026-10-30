@@ -1,10 +1,11 @@
-import { AUTH_IP_RATE_LIMIT, AUTH_RATE_LIMIT } from '@inkline/shared';
+import { AUTH_IP_RATE_LIMIT, AUTH_RATE_LIMIT, UPLOAD_URL_RATE_LIMIT } from '@inkline/shared';
 import { describe, expect, it } from 'vitest';
 import {
   AuthRateLimiter,
   type CounterStore,
   RateLimitedError,
   RedisCounterStore,
+  UploadRateLimiter,
   clientIp,
 } from './rate-limit';
 
@@ -13,10 +14,10 @@ class MemoryStore implements CounterStore {
   now = 0;
   private entries = new Map<string, { count: number; expiresAt: number }>();
 
-  async increment(key: string, windowSeconds: number) {
+  async increment(key: string, windowSeconds: number, by = 1) {
     const live = this.live(key);
     const entry = live ?? { count: 0, expiresAt: this.now + windowSeconds * 1000 };
-    entry.count += 1;
+    entry.count += by;
     this.entries.set(key, entry);
     return entry.count;
   }
@@ -144,13 +145,40 @@ describe('password reset rate limit', () => {
   });
 });
 
+describe('upload URL rate limit', () => {
+  const max = UPLOAD_URL_RATE_LIMIT.maxAttempts;
+
+  it('counts every requested file and blocks once the user is over the limit', async () => {
+    const { store } = setup();
+    const limiter = new UploadRateLimiter(store);
+    await limiter.consume('user-1', max - 1);
+    await expect(limiter.consume('user-1', 1)).resolves.toBeUndefined();
+    await expect(limiter.consume('user-1', 1)).rejects.toBeInstanceOf(RateLimitedError);
+  });
+
+  it('blocks a single request that asks for more than the limit', async () => {
+    const limiter = new UploadRateLimiter(new MemoryStore());
+    await expect(limiter.consume('user-1', max + 1)).rejects.toBeInstanceOf(RateLimitedError);
+  });
+
+  it('limits each user separately and resets after the window', async () => {
+    const { store } = setup();
+    const limiter = new UploadRateLimiter(store);
+    await limiter.consume('user-1', max);
+    await expect(limiter.consume('user-2', 1)).resolves.toBeUndefined();
+    await expect(limiter.consume('user-1', 1)).rejects.toBeInstanceOf(RateLimitedError);
+    store.now = UPLOAD_URL_RATE_LIMIT.windowSeconds * 1000;
+    await expect(limiter.consume('user-1', 1)).resolves.toBeUndefined();
+  });
+});
+
 describe('RedisCounterStore', () => {
   it('creates the key with its expiry and increments in one transaction', async () => {
     const calls: unknown[][] = [];
     const store = new RedisCounterStore({
       multi: () => ({
         set: (...args: unknown[]) => void calls.push(['set', ...args]),
-        incr: (...args: unknown[]) => void calls.push(['incr', ...args]),
+        incrby: (...args: unknown[]) => void calls.push(['incrby', ...args]),
         exec: async () => [
           [null, 'OK'],
           [null, 3],
@@ -162,7 +190,7 @@ describe('RedisCounterStore', () => {
     await expect(store.increment('k', 600)).resolves.toBe(3);
     expect(calls).toEqual([
       ['set', 'k', 0, 'EX', 600, 'NX'],
-      ['incr', 'k'],
+      ['incrby', 'k', 1],
     ]);
     await expect(store.get('k')).resolves.toBe(3);
   });
@@ -171,7 +199,7 @@ describe('RedisCounterStore', () => {
     const store = new RedisCounterStore({
       multi: () => ({
         set: () => undefined,
-        incr: () => undefined,
+        incrby: () => undefined,
         exec: async () => [
           [null, 'OK'],
           [new Error('READONLY'), null],

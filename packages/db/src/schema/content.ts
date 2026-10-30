@@ -2,7 +2,7 @@ import { DEFAULT_LOCALE } from '@inkline/shared';
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { createdAt, id, timestamptz } from './columns';
-import { ageRating, episodeAccessType, episodeStatus, seriesStatus } from './enums';
+import { ageRating, episodeAccessType, episodeStatus, seriesStatus, uploadStatus } from './enums';
 import { users } from './users';
 
 export const series = pgTable(
@@ -46,6 +46,9 @@ export const episodes = pgTable(
     thumbnailKey: text('thumbnail_key'),
     status: episodeStatus('status').notNull().default('draft'),
     accessType: episodeAccessType('access_type').notNull().default('subscriber'),
+    // Days of subscriber-only early access once published; null = none (free or subscribers only).
+    // free_after is computed from it when the episode is published.
+    earlyAccessDays: integer('early_access_days'),
     freeAfter: timestamptz('free_after'),
     scheduledAt: timestamptz('scheduled_at'),
     publishedAt: timestamptz('published_at'),
@@ -54,6 +57,10 @@ export const episodes = pgTable(
     // Also serves "episodes of a series in order" lookups.
     unique('episodes_series_number_unique').on(t.seriesId, t.number),
     check('episodes_number_positive', sql`${t.number} >= 1`),
+    check(
+      'episodes_early_access_days_range',
+      sql`${t.earlyAccessDays} is null or ${t.earlyAccessDays} between 1 and 90`,
+    ),
   ],
 ).enableRLS();
 
@@ -75,5 +82,32 @@ export const episodeImages = pgTable(
   (t) => [
     unique('episode_images_episode_position_unique').on(t.episodeId, t.position),
     check('episode_images_dimensions_positive', sql`${t.width} > 0 and ${t.height} > 0`),
+  ],
+).enableRLS();
+
+/**
+ * Original page files a creator uploaded straight to the private bucket for a draft episode.
+ * The process-episode job (Phase 4) reads them in `position` order and turns them into episode_images.
+ */
+export const episodeUploads = pgTable(
+  'episode_uploads',
+  {
+    id: id(),
+    episodeId: uuid('episode_id')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    objectKey: text('object_key').notNull().unique(),
+    // Set when the creator submits the episode; until then rows are in upload order.
+    position: integer('position').notNull(),
+    // The creator's file name, for display only. Untrusted text: never put it in a key or as HTML.
+    fileName: text('file_name').notNull(),
+    contentType: text('content_type').notNull(),
+    bytes: integer('bytes').notNull(),
+    status: uploadStatus('status').notNull().default('pending'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('episode_uploads_episode_position_idx').on(t.episodeId, t.position),
+    check('episode_uploads_bytes_positive', sql`${t.bytes} > 0`),
   ],
 ).enableRLS();

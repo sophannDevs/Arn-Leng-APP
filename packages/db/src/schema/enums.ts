@@ -10,6 +10,7 @@ import {
   REPORT_TARGET_TYPES,
   SERIES_STATUSES,
   SUBSCRIPTION_STATUSES,
+  UPLOAD_STATUSES,
   USER_ROLES,
 } from '@inkline/shared';
 import { pgEnum } from 'drizzle-orm/pg-core';
@@ -27,3 +28,4 @@ export const planInterval = pgEnum('plan_interval', PLAN_INTERVALS);
 export const subscriptionStatus = pgEnum('subscription_status', SUBSCRIPTION_STATUSES);
 export const paymentProvider = pgEnum('payment_provider', PAYMENT_PROVIDERS);
 export const paymentStatus = pgEnum('payment_status', PAYMENT_STATUSES);
+export const uploadStatus = pgEnum('upload_status', UPLOAD_STATUSES);

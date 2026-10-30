@@ -1,9 +1,9 @@
-import { AUTH_IP_RATE_LIMIT, AUTH_RATE_LIMIT } from '@inkline/shared';
+import { AUTH_IP_RATE_LIMIT, AUTH_RATE_LIMIT, UPLOAD_URL_RATE_LIMIT } from '@inkline/shared';
 
 /** A counter with a time window. Redis in production; an in-memory fake in tests. */
 export interface CounterStore {
-  /** Adds 1 to the counter (starting its window if it has none) and returns the new count. */
-  increment(key: string, windowSeconds: number): Promise<number>;
+  /** Adds `by` (default 1) to the counter, starting its window if it has none; returns the new count. */
+  increment(key: string, windowSeconds: number, by?: number): Promise<number>;
   get(key: string): Promise<number>;
   reset(key: string): Promise<void>;
 }
@@ -12,7 +12,7 @@ export interface CounterStore {
 type RedisLike = {
   multi(): {
     set(key: string, value: number, ex: 'EX', seconds: number, nx: 'NX'): unknown;
-    incr(key: string): unknown;
+    incrby(key: string, amount: number): unknown;
     exec(): Promise<Array<[Error | null, unknown]> | null>;
   };
   get(key: string): Promise<string | null>;
@@ -22,12 +22,12 @@ type RedisLike = {
 export class RedisCounterStore implements CounterStore {
   constructor(private readonly redis: RedisLike) {}
 
-  async increment(key: string, windowSeconds: number): Promise<number> {
-    // One atomic transaction: create the key with its expiry if it is new, then add 1.
+  async increment(key: string, windowSeconds: number, by = 1): Promise<number> {
+    // One atomic transaction: create the key with its expiry if it is new, then add to it.
     // (INCR followed by EXPIRE could crash in between and leave a counter that never expires.)
     const tx = this.redis.multi();
     tx.set(key, 0, 'EX', windowSeconds, 'NX');
-    tx.incr(key);
+    tx.incrby(key, by);
     const results = await tx.exec();
     const incr = results?.[1];
     if (!incr || incr[0]) throw incr?.[0] ?? new Error('Redis rate limit transaction failed');
@@ -99,6 +99,20 @@ export class AuthRateLimiter {
   private async consume(key: string): Promise<void> {
     const count = await this.store.increment(key, AUTH_RATE_LIMIT.windowSeconds);
     if (count > AUTH_RATE_LIMIT.maxAttempts) throw new RateLimitedError();
+  }
+}
+
+/** Limits how many upload URLs one user may request per window (each requested file costs 1). */
+export class UploadRateLimiter {
+  constructor(private readonly store: CounterStore) {}
+
+  async consume(userId: string, files: number): Promise<void> {
+    const count = await this.store.increment(
+      `rl:upload-url:user:${userId}`,
+      UPLOAD_URL_RATE_LIMIT.windowSeconds,
+      files,
+    );
+    if (count > UPLOAD_URL_RATE_LIMIT.maxAttempts) throw new RateLimitedError();
   }
 }
 

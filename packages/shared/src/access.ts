@@ -1,6 +1,12 @@
 import { canManageSeries } from './authz';
 import { EARLY_ACCESS_DAYS, FREE_EPISODES } from './constants';
-import type { EpisodeAccessType, EpisodeStatus, SubscriptionStatus, UserRole } from './enums';
+import type {
+  EpisodeAccessMode,
+  EpisodeAccessType,
+  EpisodeStatus,
+  SubscriptionStatus,
+  UserRole,
+} from './enums';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -100,4 +106,41 @@ export function defaultEpisodeAccess(
     accessType: 'subscriber',
     freeAfter: new Date(publishedAt.getTime() + EARLY_ACCESS_DAYS * DAY_MS),
   };
+}
+
+/** The access mode a new episode starts with: free for the first episodes, else subscribers first. */
+export function defaultAccessMode(number: number): EpisodeAccessMode {
+  return number <= FREE_EPISODES ? 'free' : 'early_access';
+}
+
+/** How a creator's choice is stored: access_type plus the early-access window in days (null = none). */
+export function storedAccess(mode: EpisodeAccessMode): {
+  accessType: EpisodeAccessType;
+  earlyAccessDays: number | null;
+} {
+  switch (mode) {
+    case 'free':
+      return { accessType: 'free', earlyAccessDays: null };
+    case 'early_access':
+      return { accessType: 'subscriber', earlyAccessDays: EARLY_ACCESS_DAYS };
+    case 'subscribers_only':
+      return { accessType: 'subscriber', earlyAccessDays: null };
+  }
+}
+
+export function accessModeOf(episode: {
+  accessType: EpisodeAccessType;
+  earlyAccessDays: number | null;
+}): EpisodeAccessMode {
+  if (episode.accessType === 'free') return 'free';
+  return episode.earlyAccessDays === null ? 'subscribers_only' : 'early_access';
+}
+
+/** free_after for an episode being published now: set only for the early-access mode. */
+export function freeAfterOnPublish(
+  episode: { accessType: EpisodeAccessType; earlyAccessDays: number | null },
+  publishedAt: Date,
+): Date | null {
+  if (episode.accessType === 'free' || episode.earlyAccessDays === null) return null;
+  return new Date(publishedAt.getTime() + episode.earlyAccessDays * DAY_MS);
 }

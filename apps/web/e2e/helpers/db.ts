@@ -1,5 +1,5 @@
-import { createDb, users } from '@inkline/db';
-import { eq, like } from 'drizzle-orm';
+import { createDb, creatorProfiles, episodeUploads, episodes, series, users } from '@inkline/db';
+import { asc, eq, inArray, like } from 'drizzle-orm';
 
 export const E2E_EMAIL_PREFIX = 'e2e-';
 export const E2E_EMAIL_DOMAIN = '@inkline.test';
@@ -22,8 +22,118 @@ export function makeAdmin(email: string) {
   return withDb((db) => db.update(users).set({ role: 'admin' }).where(eq(users.email, email)));
 }
 
-export function deleteTestUsers() {
-  return withDb((db) =>
-    db.delete(users).where(like(users.email, `${E2E_EMAIL_PREFIX}%${E2E_EMAIL_DOMAIN}`)),
+/** Gives the user the creator role and a profile, as the "become a creator" flow does. */
+export function makeCreator(email: string) {
+  return withDb(async (db) => {
+    const [user] = await db
+      .update(users)
+      .set({ role: 'creator' })
+      .where(eq(users.email, email))
+      .returning({ id: users.id });
+    if (user)
+      await db
+        .insert(creatorProfiles)
+        .values({ userId: user.id, penName: 'E2E Creator' })
+        .onConflictDoNothing();
+  });
+}
+
+/** Inserts a series owned by the given user (bypassing the UI) and returns its id. */
+export function insertSeries(ownerEmail: string, title: string) {
+  return withDb(async (db) => {
+    const [owner] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, ownerEmail));
+    if (!owner) throw new Error(`No user ${ownerEmail}`);
+    const slug = `e2e-${Math.random().toString(36).slice(2, 10)}`;
+    const [row] = await db
+      .insert(series)
+      .values({ creatorId: owner.id, slug, title })
+      .returning({ id: series.id });
+    if (!row) throw new Error('Series not inserted');
+    return row.id;
+  });
+}
+
+/** Inserts a draft episode in the series and returns its id. */
+export function insertEpisode(seriesId: string, number = 1) {
+  return withDb(async (db) => {
+    const [row] = await db
+      .insert(episodes)
+      .values({ seriesId, number, title: `Episode ${number}` })
+      .returning({ id: episodes.id });
+    if (!row) throw new Error('Episode not inserted');
+    return row.id;
+  });
+}
+
+export function getSeries(id: string) {
+  return withDb(async (db) => (await db.select().from(series).where(eq(series.id, id)))[0] ?? null);
+}
+
+export function getEpisode(id: string) {
+  return withDb(
+    async (db) => (await db.select().from(episodes).where(eq(episodes.id, id)))[0] ?? null,
   );
+}
+
+export function getUploads(episodeId: string) {
+  return withDb((db) =>
+    db
+      .select()
+      .from(episodeUploads)
+      .where(eq(episodeUploads.episodeId, episodeId))
+      .orderBy(asc(episodeUploads.position)),
+  );
+}
+
+/** Storage keys of every file the test users uploaded, so the teardown can delete them from MinIO. */
+export function collectTestObjectKeys() {
+  return withDb(async (db) => {
+    const pattern = `${E2E_EMAIL_PREFIX}%${E2E_EMAIL_DOMAIN}`;
+    const owners = db.select({ id: users.id }).from(users).where(like(users.email, pattern));
+    const pages = await db
+      .select({ key: episodeUploads.objectKey })
+      .from(episodeUploads)
+      .innerJoin(episodes, eq(episodes.id, episodeUploads.episodeId))
+      .innerJoin(series, eq(series.id, episodes.seriesId))
+      .where(inArray(series.creatorId, owners));
+    const covers = await db
+      .select({ key: series.coverKey })
+      .from(series)
+      .where(inArray(series.creatorId, owners));
+    const thumbnails = await db
+      .select({ key: episodes.thumbnailKey })
+      .from(episodes)
+      .innerJoin(series, eq(series.id, episodes.seriesId))
+      .where(inArray(series.creatorId, owners));
+    const avatars = await db
+      .select({ key: users.avatarKey })
+      .from(users)
+      .where(like(users.email, pattern));
+    const keys = (rows: Array<{ key: string | null }>) =>
+      rows.map((r) => r.key).filter((k): k is string => Boolean(k));
+    return {
+      private: pages.map((p) => p.key),
+      public: [
+        ...keys(covers),
+        ...keys(thumbnails),
+        ...keys(avatars).filter((k) => !k.startsWith('http')),
+      ],
+    };
+  });
+}
+
+/** Removes everything the tests created. Series first: users can't be deleted while they own series. */
+export function deleteTestUsers() {
+  return withDb(async (db) => {
+    const pattern = `${E2E_EMAIL_PREFIX}%${E2E_EMAIL_DOMAIN}`;
+    const ids = (
+      await db.select({ id: users.id }).from(users).where(like(users.email, pattern))
+    ).map((u) => u.id);
+    if (ids.length === 0) return;
+    await db.delete(series).where(inArray(series.creatorId, ids));
+    await db.delete(users).where(inArray(users.id, ids));
+  });
 }
