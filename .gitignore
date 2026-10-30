@@ -25,3 +25,6 @@ blob-report/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# local dev email outbox (written by the console email sender)
+.dev-mail/

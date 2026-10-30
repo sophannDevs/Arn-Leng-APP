@@ -1,13 +1,22 @@
 import { EARLY_ACCESS_DAYS, FREE_EPISODES } from '@inkline/shared';
 import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { Logo } from '@/components/logo';
 
 export default async function HomePage() {
   const t = await getTranslations('home');
   return (
     <div className="mx-auto flex min-h-screen max-w-[1200px] flex-col px-4 sm:px-6">
-      <header className="pt-[18px]">
+      <header className="flex items-center justify-between pt-[18px]">
         <Logo />
+        <nav aria-label={t('navLabel')} className="flex gap-4 text-sm font-semibold">
+          <Link href="/login" className="hover:text-brand">
+            {t('login')}
+          </Link>
+          <Link href="/signup" className="hover:text-brand">
+            {t('signup')}
+          </Link>
+        </nav>
       </header>
 
       <main className="flex flex-1 flex-col justify-center gap-4 pb-24 pt-10">

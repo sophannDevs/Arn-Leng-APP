@@ -1,3 +1,4 @@
+import { canManageSeries } from './authz';
 import { EARLY_ACCESS_DAYS, FREE_EPISODES } from './constants';
 import type { EpisodeAccessType, EpisodeStatus, SubscriptionStatus, UserRole } from './enums';
 
@@ -65,7 +66,7 @@ export function isSubscriptionEntitled(sub: AccessSubscription, now: Date): bool
 export function getEpisodeAccess(input: EpisodeAccessInput): EpisodeAccess {
   const { user, series, episode, subscriptions, now } = input;
 
-  if (user && (user.role === 'admin' || user.id === series.creatorId)) {
+  if (user && canManageSeries(user, series.creatorId)) {
     return { allowed: true, reason: 'staff' };
   }
   if (!series.isPublished || episode.status !== 'published') {

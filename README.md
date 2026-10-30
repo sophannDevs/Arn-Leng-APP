@@ -52,12 +52,24 @@ The schema lives in `packages/db/src/schema` (one file per area: users, content,
 - Change the schema, then `pnpm db:generate` writes a new SQL migration to `packages/db/drizzle/`. Commit it.
 - `pnpm db:migrate` applies pending migrations. It only needs `drizzle-orm`, so deployments run it too.
 - `pnpm db:seed` **deletes all data** and loads a known development data set. It refuses when `NODE_ENV=production`, and on a non-local database (such as Supabase) unless you run `pnpm db:seed --allow-remote`:
-  - users `admin@inkline.test`, creators `mina@inkline.test` and `leo@inkline.test`, readers `reader1@inkline.test` … `reader5@inkline.test` (no passwords until Phase 2);
+  - users `admin@inkline.test`, creators `mina@inkline.test` and `leo@inkline.test`, readers `reader1@inkline.test` … `reader5@inkline.test` (all verified, password `inkline-dev-password`; the admin is asked to set up 2FA on first log in);
   - 6 series × 10 weekly episodes; in each series episodes 1–3 are free, episode 10 is still in early access, older ones are free again. Special cases: _Paper Crowns_ ep 7 is permanently free, _Neon Courier_ ep 8 is permanently subscriber-only, _Iron Orchard_ ep 10 is a scheduled draft;
   - the monthly and yearly plans; reader1 has an active monthly subscription, reader2 an expired yearly one.
 - `pnpm db:studio` opens Drizzle Studio to browse the data.
 
 The episode access rule (who may read what) is `getEpisodeAccess` in `packages/shared/src/access.ts`, with its tests next to it.
+
+## Authentication and roles
+
+[Better Auth](https://better-auth.com) runs inside the web app at `/api/auth/*`, on our own tables (`users`, `sessions`, `accounts`, `verifications`, `two_factors`). Sign-in methods: email + password (email confirmation required), Google and Facebook, plus optional authenticator-app 2FA.
+
+- **Pages:** `/signup`, `/login`, `/forgot-password`, `/reset-password`, `/account` (name, language, password, 2FA), `/become-creator`. `/studio` is for creators and admins, `/admin` for admins; everyone else gets HTTP 403.
+- **Guards** (`apps/web/src/server/auth/session.ts`): call `requireUser()`, `requireRole('creator', 'admin')` or `requireSeriesOwner(seriesId)` at the top of every protected page, server action and route handler. The role rules themselves are the pure function `authorize()` in `packages/shared/src/authz.ts`. Admins without 2FA are redirected to `/account?setup2fa=1` and can't turn it off.
+- **Sessions:** httpOnly, SameSite=Lax cookie (plus Secure in production), 7 days, read from the database on every request (no cookie cache), so role changes and sign-outs apply immediately.
+- **Rate limits** (Redis): 5 failed log-ins per email per 10 minutes (the 6th is blocked, even with the right password), and 20 failed log-ins per IP; 5 sign-ups per IP; 5 password-reset / resend-confirmation requests per IP and per email. Cloudflare Turnstile guards sign-up and password reset.
+- **Email** goes through the `EmailSender` interface (`apps/web/src/server/email`): Resend when `RESEND_API_KEY` is set, otherwise the console. In development each email is printed in the `pnpm dev` terminal and also appended to `.dev-mail/outbox.jsonl` (git-ignored), so you can copy confirmation and reset links from there.
+- **Social login:** set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and/or `FACEBOOK_CLIENT_ID` / `FACEBOOK_CLIENT_SECRET` in `.env`; each button appears only when its keys are set. The redirect URL to register with the provider is `<NEXT_PUBLIC_SITE_URL>/api/auth/callback/google` (or `/facebook`).
+- **Turnstile** uses Cloudflare's published test keys from `.env.example` locally. Production needs real keys, a real `RESEND_API_KEY` and its own `BETTER_AUTH_SECRET` (`openssl rand -base64 32`); the web app refuses to start without them.
 
 ### Check that the worker runs
 
@@ -86,7 +98,7 @@ It queues an example job and prints the worker's reply, e.g. `Hello, Inkline! Th
 | `pnpm db:seed`                       | Reset the database to the development seed data                            |
 | `pnpm db:studio`                     | Browse the database in Drizzle Studio                                      |
 
-The first time you run end-to-end tests, install the browser: `pnpm --filter @inkline/web exec playwright install chromium`. They need `.env` and the services, like `pnpm dev`.
+The first time you run end-to-end tests, install the browser: `pnpm --filter @inkline/web exec playwright install chromium`. They need `.env`, the services (Redis) and a migrated database, like `pnpm dev`, and they need internet access for Cloudflare's Turnstile. The sign-up tests create users named `e2e-…@inkline.test` and delete them when the run ends.
 
 ## Environment
 
@@ -102,7 +114,8 @@ The build follows the phase plan in the project's build prompt. Each phase ends 
 
 - [x] Phase 0: project setup
 - [x] Phase 1: database and access rule
-- [ ] Phase 2: authentication and roles
+- [x] Phase 2: authentication and roles
 - [ ] Phase 3: creator studio and uploads
 - [ ] Phases 4–11: images, public site and reader, engagement, subscriptions, PayWay, security, admin, deployment
+
 # Arn-Leng-APP

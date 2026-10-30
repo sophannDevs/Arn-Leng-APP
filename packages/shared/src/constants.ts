@@ -15,3 +15,14 @@ export const PLAN_PRICES = {
   monthly: { interval: 'month', priceMinor: 499, currency: CURRENCY },
   yearly: { interval: 'year', priceMinor: 4999, currency: CURRENCY },
 } as const;
+
+/** Roles that must have two-factor authentication on before they can use the site. */
+export const TWO_FACTOR_REQUIRED_ROLES = ['admin'] as const;
+
+/** Sign-in failures (per email), and sign-up / password-reset attempts (per IP), per window. */
+export const AUTH_RATE_LIMIT = { maxAttempts: 5, windowSeconds: 10 * 60 } as const;
+/** Failed sign-ins from one IP across all emails. Higher, so one shared network isn't locked out. */
+export const AUTH_IP_RATE_LIMIT = { maxAttempts: 20, windowSeconds: 10 * 60 } as const;
+
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 128;

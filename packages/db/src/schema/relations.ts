@@ -1,4 +1,5 @@
 import { relations } from 'drizzle-orm';
+import { accounts, sessions, twoFactors } from './auth';
 import { payments, plans, subscriptions } from './billing';
 import { episodeImages, episodes, series } from './content';
 import { comments, follows, likes, readingProgress } from './engagement';
@@ -15,6 +16,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   readingProgress: many(readingProgress),
   subscriptions: many(subscriptions),
   payments: many(payments),
+  sessions: many(sessions),
+  accounts: many(accounts),
+  twoFactors: many(twoFactors),
 }));
 
 export const creatorProfilesRelations = relations(creatorProfiles, ({ one }) => ({

@@ -9,7 +9,9 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  transpilePackages: ['@inkline/shared'],
+  transpilePackages: ['@inkline/shared', '@inkline/db'],
+  // Lets server code call forbidden() (HTTP 403) from pages and server actions.
+  experimental: { authInterrupts: true },
 };
 
 export default createNextIntlPlugin('./src/i18n/request.ts')(nextConfig);

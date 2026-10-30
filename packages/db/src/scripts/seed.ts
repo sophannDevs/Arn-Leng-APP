@@ -6,6 +6,7 @@ import {
   type UserRole,
   defaultEpisodeAccess,
 } from '@inkline/shared';
+import { hashPassword } from 'better-auth/crypto';
 import { getTableName, sql } from 'drizzle-orm';
 import { createDb } from '../client';
 import { directUrl, parseDbEnv } from '../env';
@@ -15,12 +16,16 @@ import * as s from '../schema';
  * Development seed: replaces ALL data with a small known data set. Refuses to run in production,
  * and against a non-local database (e.g. Supabase) unless run with --allow-remote.
  * Dates are relative to now, so early access windows are always "live" after a fresh seed.
- * Emails use the reserved .test domain. Passwords arrive with Better Auth in Phase 2.
+ * Emails use the reserved .test domain. Every seeded user has a verified email and signs in with
+ * DEV_PASSWORD (development only; the admin is asked to set up 2FA on first sign-in).
  */
 if (process.env.NODE_ENV === 'production') {
   console.error('Refusing to seed: NODE_ENV is production. The seed deletes all data.');
   process.exit(1);
 }
+
+/** Password of every seeded user. Development data only. */
+const DEV_PASSWORD = 'inkline-dev-password';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = new Date();
@@ -120,6 +125,10 @@ const { db, close } = createDb(url, { max: 1 });
 // Children before parents is not needed with CASCADE, but listing every table keeps the reset complete.
 const allTables = [
   s.auditLogs,
+  s.twoFactors,
+  s.verifications,
+  s.accounts,
+  s.sessions,
   s.webhookEvents,
   s.payments,
   s.subscriptions,
@@ -148,13 +157,23 @@ try {
 
     const users = await tx
       .insert(s.users)
-      .values(seedUsers)
+      .values(seedUsers.map((u) => ({ ...u, emailVerified: true })))
       .returning({ id: s.users.id, email: s.users.email });
     const userId = (email: string) => {
       const user = users.find((u) => u.email === email);
       if (!user) throw new Error(`Seed user ${email} missing`);
       return user.id;
     };
+
+    const passwordHash = await hashPassword(DEV_PASSWORD);
+    await tx.insert(s.accounts).values(
+      users.map((u) => ({
+        userId: u.id,
+        providerId: 'credential',
+        accountId: u.id,
+        password: passwordHash,
+      })),
+    );
 
     await tx
       .insert(s.creatorProfiles)
@@ -293,7 +312,8 @@ try {
 
   console.info(
     `Seeded ${seedUsers.length} users (1 admin, 2 creators, 5 readers), ${seedSeries.length} series × ` +
-      `${EPISODES_PER_SERIES} episodes, 2 plans, 2 subscriptions (reader1 active, reader2 expired).`,
+      `${EPISODES_PER_SERIES} episodes, 2 plans, 2 subscriptions (reader1 active, reader2 expired). ` +
+      `All users sign in with the password "${DEV_PASSWORD}".`,
   );
 } finally {
   await close();

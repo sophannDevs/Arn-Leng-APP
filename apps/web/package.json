@@ -13,7 +13,11 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@inkline/db": "workspace:*",
     "@inkline/shared": "workspace:*",
+    "better-auth": "1.7.14",
+    "drizzle-orm": "0.45.4",
+    "ioredis": "5.11.1",
     "next": "16.4.3",
     "next-intl": "4.14.9",
     "react": "19.3.1",
