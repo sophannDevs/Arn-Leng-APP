@@ -1,6 +1,6 @@
 'use server';
 
-import { episodeUploads, episodes, series, users } from '@inkline/db';
+import { creatorProfiles, episodeUploads, episodes, series, users } from '@inkline/db';
 import {
   defaultAccessMode,
   episodeInputSchema,
@@ -63,9 +63,15 @@ export async function createSeriesAction(
   const parsed = seriesInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'invalid' };
   try {
+    // Search matches the creator's pen name, so keep a copy of it on the series.
+    const [profile] = await db
+      .select({ penName: creatorProfiles.penName })
+      .from(creatorProfiles)
+      .where(eq(creatorProfiles.userId, user.id))
+      .limit(1);
     const [row] = await db
       .insert(series)
-      .values({ ...parsed.data, creatorId: user.id })
+      .values({ ...parsed.data, creatorId: user.id, creatorName: profile?.penName ?? user.name })
       .returning({ id: series.id });
     if (!row) return { ok: false, error: 'generic' };
     revalidatePath('/studio');

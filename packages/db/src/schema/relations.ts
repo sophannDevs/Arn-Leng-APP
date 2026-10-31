@@ -2,7 +2,14 @@ import { relations } from 'drizzle-orm';
 import { accounts, sessions, twoFactors } from './auth';
 import { payments, plans, subscriptions } from './billing';
 import { episodeImages, episodeUploads, episodes, series } from './content';
-import { comments, follows, likes, readingProgress } from './engagement';
+import {
+  comments,
+  follows,
+  likes,
+  notifications,
+  readingHistory,
+  readingProgress,
+} from './engagement';
 import { creatorProfiles, users } from './users';
 
 // For Drizzle's relational query API (db.query.*). They add no database constraints.
@@ -84,4 +91,15 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 
 export const episodeUploadsRelations = relations(episodeUploads, ({ one }) => ({
   episode: one(episodes, { fields: [episodeUploads.episodeId], references: [episodes.id] }),
+}));
+
+export const readingHistoryRelations = relations(readingHistory, ({ one }) => ({
+  user: one(users, { fields: [readingHistory.userId], references: [users.id] }),
+  episode: one(episodes, { fields: [readingHistory.episodeId], references: [episodes.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+  series: one(series, { fields: [notifications.seriesId], references: [series.id] }),
+  episode: one(episodes, { fields: [notifications.episodeId], references: [episodes.id] }),
 }));

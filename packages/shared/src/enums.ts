@@ -62,3 +62,18 @@ export const GENRES = [
   'thriller',
 ] as const;
 export type Genre = (typeof GENRES)[number];
+
+export const COMMENT_REPORT_REASONS = [
+  'spam',
+  'harassment',
+  'spoiler',
+  'inappropriate',
+  'other',
+] as const;
+export type CommentReportReason = (typeof COMMENT_REPORT_REASONS)[number];
+
+export const NOTIFICATION_TYPES = ['new_episode'] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export const RANKING_PERIODS = ['daily', 'weekly'] as const;
+export type RankingPeriod = (typeof RANKING_PERIODS)[number];

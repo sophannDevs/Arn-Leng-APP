@@ -135,6 +135,20 @@ export class ImageUrlRateLimiter {
   }
 }
 
+/** A plain "N per window per key" limiter (comments, reports). */
+export class KeyedRateLimiter {
+  constructor(
+    private readonly store: CounterStore,
+    private readonly name: string,
+    private readonly rule: { maxAttempts: number; windowSeconds: number },
+  ) {}
+
+  async consume(key: string): Promise<void> {
+    const count = await this.store.increment(`rl:${this.name}:${key}`, this.rule.windowSeconds);
+    if (count > this.rule.maxAttempts) throw new RateLimitedError();
+  }
+}
+
 /**
  * Best-effort client IP. Behind Cloudflare or a proxy the first X-Forwarded-For entry is the client;
  * without a trusted proxy in front it can be spoofed, which is why sign-in is also limited per email.

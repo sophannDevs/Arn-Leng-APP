@@ -26,6 +26,8 @@ export const series = pgTable(
     slug: text('slug').notNull().unique(),
     title: text('title').notNull(),
     description: text('description').notNull().default(''),
+    // The creator's pen name (or name) copied here so search can match it with one index.
+    creatorName: text('creator_name').notNull().default(''),
     coverKey: text('cover_key'),
     genres: text('genres')
       .array()
@@ -49,10 +51,10 @@ export const series = pgTable(
       .where(sql`${t.isPublished}`),
     // Browse by genre: genres @> ARRAY['fantasy'].
     index('series_genres_idx').using('gin', t.genres),
-    // Search: PostgreSQL full-text search over title and description.
+    // Search: PostgreSQL full-text search over title, description and the creator's pen name.
     index('series_search_idx').using(
       'gin',
-      sql`to_tsvector('simple', ${t.title} || ' ' || ${t.description})`,
+      sql`to_tsvector('simple', ${t.title} || ' ' || ${t.description} || ' ' || ${t.creatorName})`,
     ),
   ],
 ).enableRLS();

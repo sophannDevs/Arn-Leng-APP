@@ -1,8 +1,9 @@
-import { accounts } from '@inkline/db';
+import { accounts, users } from '@inkline/db';
 import { requiresTwoFactor } from '@inkline/shared';
 import { and, eq } from 'drizzle-orm';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { NotificationSettings } from '@/components/account/notification-settings';
 import { PasswordForm } from '@/components/account/password-form';
 import { ProfileForm } from '@/components/account/profile-form';
 import { SignOutButton } from '@/components/account/sign-out-button';
@@ -23,6 +24,11 @@ export default async function AccountPage() {
     .where(and(eq(accounts.userId, user.id), eq(accounts.providerId, 'credential')))
     .limit(1);
   const hasPassword = Boolean(credential);
+  const [prefs] = await db
+    .select({ emailNotifications: users.emailNotifications })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1);
   const mustSetUpTwoFactor = requiresTwoFactor(user.role) && !user.twoFactorEnabled;
 
   return (
@@ -51,6 +57,10 @@ export default async function AccountPage() {
               : null
           }
         />
+      </Panel>
+
+      <Panel title={t('notifications.title')} description={t('notifications.description')}>
+        <NotificationSettings initial={prefs?.emailNotifications ?? false} />
       </Panel>
 
       {hasPassword && (

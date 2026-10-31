@@ -6,8 +6,10 @@ import { notFound } from 'next/navigation';
 import { CoverImage } from '@/components/site/cover-image';
 import { CoverPlaceholder } from '@/components/site/cover-placeholder';
 import { EpisodeList } from '@/components/site/episode-list';
+import { FollowButton } from '@/components/engagement/follow-button';
 import { ReadButton } from '@/components/site/read-button';
 import { SeriesCard } from '@/components/site/series-card';
+import { getSeriesTotals } from '@/server/engagement/follows-likes';
 import { pictureSources } from '@/server/public/images';
 import {
   getEpisodeRange,
@@ -47,12 +49,13 @@ export default async function SeriesPage({ params }: Props) {
   const series = await getSeriesBySlug(slug);
   if (!series) notFound();
 
-  const [t, tGenres, firstPage, range, related] = await Promise.all([
+  const [t, tGenres, firstPage, range, related, totals] = await Promise.all([
     getTranslations('series'),
     getTranslations('genres.names'),
     getEpisodesPage(series.id, { order: 'desc' }),
     getEpisodeRange(series.id),
     getRelatedSeries(series.id, series.genres),
+    getSeriesTotals(series.id),
   ]);
   const now = new Date();
   const cover = pictureSources(series.coverKey, 'cover');
@@ -120,6 +123,18 @@ export default async function SeriesPage({ params }: Props) {
               </dd>
               <dt className="order-2 text-[11px] text-soft">{t('stats.episodes')}</dt>
             </div>
+            <div className="flex flex-col">
+              <dd className="order-1 m-0 font-display text-2xl font-bold leading-none">
+                {totals.followers}
+              </dd>
+              <dt className="order-2 text-[11px] text-soft">{t('stats.followers')}</dt>
+            </div>
+            <div className="flex flex-col">
+              <dd className="order-1 m-0 font-display text-2xl font-bold leading-none">
+                {totals.likes}
+              </dd>
+              <dt className="order-2 text-[11px] text-soft">{t('stats.likes')}</dt>
+            </div>
             {range && (
               <div className="flex flex-col">
                 <dd className="order-1 m-0 font-display text-2xl font-bold leading-none">
@@ -132,6 +147,7 @@ export default async function SeriesPage({ params }: Props) {
           {range && (
             <div className="mt-1 flex flex-wrap gap-2.5">
               <ReadButton slug={series.slug} seriesId={series.id} firstNumber={range.first} />
+              <FollowButton seriesId={series.id} initialFollowers={totals.followers} />
               {range.latest !== range.first && (
                 <Link
                   href={`/series/${series.slug}/${range.latest}`}

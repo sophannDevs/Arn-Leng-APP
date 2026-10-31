@@ -22,6 +22,11 @@ export const workerEnvSchema = z
     IMAGE_JOB_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(2),
     /** Where the web app runs, so the worker can ask it to refresh cached pages after publishing. */
     WEB_INTERNAL_URL: z.url().default('http://localhost:3000'),
+    /** Public address of the site, for links in emails. */
+    NEXT_PUBLIC_SITE_URL: z.url().default('http://localhost:3000'),
+    /** New-episode emails go through Resend; without a key they are only printed (development). */
+    RESEND_API_KEY: optional(z.string().min(1)),
+    EMAIL_FROM: z.string().min(3).default('Inkline <no-reply@inkline.com>'),
     INTERNAL_API_SECRET: optional(z.string().min(32, 'must be at least 32 characters')),
   })
   .superRefine((env, ctx) => {

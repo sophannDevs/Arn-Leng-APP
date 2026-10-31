@@ -41,7 +41,10 @@
     },
     "trending": {
       "title": "Trending this week",
-      "note": "Rankings are coming soon. For now: series with the most episodes."
+      "note": "Ranked by reads in the last 7 days.",
+      "fallback": "Rankings appear once readers start reading. For now: series with the most episodes.",
+      "all": "Full ranking ›",
+      "empty": "Nothing trending yet."
     },
     "browse": {
       "eyebrow": "Browse",
@@ -154,6 +157,13 @@
       "reader": "reader",
       "creator": "creator",
       "admin": "admin"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "You always see new episodes of series you follow in the bell. Email is optional.",
+      "emailLabel": "Email me when a series I follow publishes a new episode",
+      "saved": "Saved.",
+      "failed": "Couldn't save. Try again."
     },
     "profile": {
       "title": "Profile",
@@ -433,7 +443,9 @@
       "premium": "Premium",
       "browse": "Browse",
       "search": "Search",
-      "account": "Account"
+      "account": "Account",
+      "ranking": "Ranking",
+      "notifications": "Notifications"
     },
     "search": {
       "label": "Search series",
@@ -474,7 +486,9 @@
     },
     "stats": {
       "episodes": "Episodes",
-      "latest": "Latest"
+      "latest": "Latest",
+      "followers": "Followers",
+      "likes": "Likes"
     },
     "read": {
       "start": "Start reading",
@@ -532,16 +546,40 @@
     "title": "Search",
     "resultsFor": "Results for “{query}”",
     "count": "{count, plural, =0 {No series found.} one {# series} other {# series}}",
-    "hint": "Search by title or description.",
+    "hint": "Search by title, description or creator.",
     "empty": "Try another word, or browse by genre.",
+    "searching": "Searching…",
+    "submit": "Search",
+    "failed": "Search didn't work. Try again.",
+    "genreFilter": "Filter by genre",
+    "allGenres": "All genres",
+    "clear": "Clear",
     "meta": {
       "description": "Search webtoons and comics on Inkline."
     }
   },
   "library": {
     "title": "My library",
-    "lead": "Your followed series and reading history will live here. It's coming soon.",
-    "home": "Browse series"
+    "eyebrow": "Comic",
+    "tabs": {
+      "label": "Library sections",
+      "following": "Following",
+      "continue": "Continue reading",
+      "history": "History"
+    },
+    "emptyFollowing": "You're not following any series yet. Tap Follow on a series to keep it here.",
+    "browse": "Browse series",
+    "emptyContinue": "Nothing in progress. Open any episode and we'll keep your place.",
+    "seeNew": "See new episodes",
+    "emptyHistory": "Episodes you read will show up here.",
+    "startReading": "Start reading",
+    "episodeLine": "Ep. {number}: {title}",
+    "readPercent": "{percent}% read",
+    "clearHistory": "Clear history",
+    "clearing": "Clearing…",
+    "continueLink": "Continue",
+    "signedOut": "Log in to see your library.",
+    "login": "Log in"
   },
   "premium": {
     "title": "Inkline Premium",
@@ -598,5 +636,100 @@
       "description": "Read webtoons and comics on Inkline. The first {free} episodes of every series are free."
     },
     "ogTagline": "Webtoons and comics"
+  },
+  "engagement": {
+    "follow": "Follow",
+    "following": "Following",
+    "followers": "{count, plural, one {# follower} other {# followers}}",
+    "like": "Like",
+    "liked": "Liked",
+    "likes": "{count, plural, one {# like} other {# likes}}",
+    "loginToFollow": "Log in to follow series",
+    "loginToLike": "Log in to like episodes",
+    "failed": "That didn't work. Try again."
+  },
+  "comments": {
+    "title": "Comments",
+    "count": "{count, plural, =0 {No comments yet} one {# comment} other {# comments}}",
+    "placeholder": "Write a comment…",
+    "label": "Your comment",
+    "post": "Post",
+    "posting": "Posting…",
+    "remaining": "{left} characters left",
+    "loginPrompt": "Log in to join the conversation.",
+    "login": "Log in",
+    "empty": "Be the first to comment.",
+    "more": "Show more comments",
+    "loading": "Loading…",
+    "failed": "Something went wrong. Try again.",
+    "rateLimited": "You're commenting too fast. Wait a few minutes.",
+    "invalid": "Write between 1 and {max} characters.",
+    "unavailable": "Comments aren't available for this episode.",
+    "delete": "Delete",
+    "confirmDelete": "Delete this comment?",
+    "yes": "Yes, delete",
+    "cancel": "Cancel",
+    "report": "Report",
+    "reportTitle": "Why are you reporting this?",
+    "reported": "Thanks. We'll take a look.",
+    "alreadyReported": "You already reported this comment.",
+    "reasons": {
+      "spam": "Spam",
+      "harassment": "Harassment or hate",
+      "spoiler": "Spoiler",
+      "inappropriate": "Inappropriate content",
+      "other": "Something else"
+    },
+    "hide": "Hide",
+    "hiddenBadge": "Hidden",
+    "hiddenNote": "Only you and moderators can see this comment.",
+    "by": "{name}"
+  },
+  "ranking": {
+    "title": "Rankings",
+    "eyebrow": "Trending",
+    "tabs": {
+      "label": "Ranking period",
+      "daily": "Today",
+      "weekly": "This week"
+    },
+    "empty": "Nobody has read anything in this time yet. Check back soon.",
+    "fallbackNote": "Not enough readers yet: showing the series with the most episodes.",
+    "rank": "Rank {rank}",
+    "meta": {
+      "description": "The most-read webtoons and comics on Inkline, today and this week."
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bellUnread": "Notifications, {count} unread",
+    "empty": "Nothing new yet. Follow series to hear when new episodes come out.",
+    "newEpisode": "{series}: Episode {number} is out",
+    "episodeTitle": "{title}",
+    "markAll": "Mark all as read",
+    "viewAll": "See all",
+    "signedOut": "Log in to see your notifications.",
+    "emailLabel": "Email me when a series I follow has a new episode",
+    "emailSaved": "Saved.",
+    "emailFailed": "Couldn't save that. Try again.",
+    "emailTitle": "Notifications"
+  },
+  "stats": {
+    "title": "Stats",
+    "views30": "Views · 30 days",
+    "followers": "Followers",
+    "likes": "Likes",
+    "chartTitle": "Daily views",
+    "chartLead": "Last 30 days",
+    "chartLabel": "Daily views over the last 30 days: {total} in total, busiest day {peak}",
+    "oldest": "30 days ago",
+    "today": "Today",
+    "perEpisode": "Views per episode",
+    "number": "#",
+    "episode": "Episode",
+    "views": "Views",
+    "none": "No episodes published yet.",
+    "tip": "{views} views · {day}"
   }
 }

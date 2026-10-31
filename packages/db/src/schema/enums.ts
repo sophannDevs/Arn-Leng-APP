@@ -3,6 +3,7 @@ import {
   COMMENT_STATUSES,
   EPISODE_ACCESS_TYPES,
   EPISODE_STATUSES,
+  NOTIFICATION_TYPES,
   PAYMENT_PROVIDERS,
   PAYMENT_STATUSES,
   PLAN_INTERVALS,
@@ -29,3 +30,4 @@ export const subscriptionStatus = pgEnum('subscription_status', SUBSCRIPTION_STA
 export const paymentProvider = pgEnum('payment_provider', PAYMENT_PROVIDERS);
 export const paymentStatus = pgEnum('payment_status', PAYMENT_STATUSES);
 export const uploadStatus = pgEnum('upload_status', UPLOAD_STATUSES);
+export const notificationType = pgEnum('notification_type', NOTIFICATION_TYPES);

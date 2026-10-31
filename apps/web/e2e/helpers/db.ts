@@ -33,6 +33,16 @@ export function makeAdmin(email: string) {
   return withDb((db) => db.update(users).set({ role: 'admin' }).where(eq(users.email, email)));
 }
 
+/**
+ * Marks 2FA as set up, without a real authenticator. Admins are refused everywhere until they have
+ * 2FA, so API tests as an admin call this AFTER signing in (a real 2FA flag would ask for a code at sign-in).
+ */
+export function markTwoFactorEnabled(email: string) {
+  return withDb((db) =>
+    db.update(users).set({ twoFactorEnabled: true }).where(eq(users.email, email)),
+  );
+}
+
 /** Gives the user the creator role and a profile, as the "become a creator" flow does. */
 export function makeCreator(email: string) {
   return withDb(async (db) => {

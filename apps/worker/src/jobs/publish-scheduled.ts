@@ -55,6 +55,17 @@ export async function runPublishScheduled(deps: JobDeps): Promise<{ published: s
     }
   }
   if (slugs.size > 0) await deps.revalidate({ seriesSlugs: [...slugs] });
+  for (const id of published) {
+    try {
+      await deps.enqueueNotify(id);
+    } catch (error) {
+      // The episode is already published; followers just won't hear about it. Never fail the job for that.
+      console.error(
+        '[worker] could not queue follower notifications:',
+        error instanceof Error ? error.message : 'unknown',
+      );
+    }
+  }
   if (published.length > 0)
     console.info(`[worker] publish-scheduled: published ${published.length} episode(s)`);
   return { published };

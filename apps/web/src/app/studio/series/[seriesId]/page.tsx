@@ -4,10 +4,12 @@ import { asc, eq } from 'drizzle-orm';
 import { getTranslations } from 'next-intl/server';
 import { type EpisodeListItem, EpisodeTable } from '@/components/studio/episode-table';
 import { ImageUploader } from '@/components/studio/image-uploader';
+import { SeriesStatsPanel } from '@/components/studio/series-stats';
 import { SeriesForm } from '@/components/studio/series-form';
 import { StudioShell } from '@/components/studio/studio-shell';
 import { Panel } from '@/components/ui';
 import { setSeriesCoverAction } from '@/server/actions/studio';
+import { getSeriesStats } from '@/server/engagement/stats';
 import { requireSeriesOwner } from '@/server/auth/session';
 import { describeProcessingError } from '@/server/studio/failure';
 import { db } from '@/server/db';
@@ -18,8 +20,10 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesI
   // 403 unless this is the creator's own series (or an admin).
   const { series } = await requireSeriesOwner(seriesId);
   const t = await getTranslations('studio');
+  const tStats = await getTranslations('stats');
   const tFailure = await getTranslations('studio.failure');
 
+  const stats = await getSeriesStats(series.id);
   const rows = await db
     .select()
     .from(episodes)
@@ -66,6 +70,9 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesI
             isPublished: series.isPublished,
           }}
         />
+      </Panel>
+      <Panel title={tStats('title')}>
+        <SeriesStatsPanel stats={stats} />
       </Panel>
       <Panel title={t('episodes.title')} id="episodes">
         <EpisodeTable seriesId={series.id} episodes={items} />

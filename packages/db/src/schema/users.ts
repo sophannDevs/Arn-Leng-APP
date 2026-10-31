@@ -17,6 +17,8 @@ export const users = pgTable(
     // Managed by Better Auth (email verification, 2FA); the property names are the names it expects.
     emailVerified: boolean('email_verified').notNull().default(false),
     twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
+    // New-episode emails for followed series (in-app notifications are always on).
+    emailNotifications: boolean('email_notifications').notNull().default(false),
     createdAt: createdAt(),
     updatedAt: timestamptz('updated_at')
       .notNull()

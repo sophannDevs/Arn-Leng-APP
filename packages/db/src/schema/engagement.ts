@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  uniqueIndex,
   date,
   index,
   integer,
@@ -12,7 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { createdAt, id, timestamptz } from './columns';
 import { episodes, series } from './content';
-import { commentStatus, reportStatus, reportTargetType } from './enums';
+import { commentStatus, notificationType, reportStatus, reportTargetType } from './enums';
 import { users } from './users';
 
 // Composite primary keys start with user_id, so they double as the "by user" index.
@@ -88,6 +89,8 @@ export const reports = pgTable(
   (t) => [
     index('reports_status_created_idx').on(t.status, t.createdAt),
     index('reports_target_idx').on(t.targetType, t.targetId),
+    // One report per person per thing: reporting twice changes nothing.
+    uniqueIndex('reports_once_per_reporter_idx').on(t.reporterId, t.targetType, t.targetId),
   ],
 ).enableRLS();
 
@@ -131,5 +134,47 @@ export const episodeViewsDaily = pgTable(
   (t) => [
     primaryKey({ name: 'episode_views_daily_pk', columns: [t.episodeId, t.date] }),
     check('episode_views_daily_views_nonnegative', sql`${t.views} >= 0`),
+  ],
+).enableRLS();
+
+/** Episodes a user has opened, newest read first (the "History" tab of My Library). */
+export const readingHistory = pgTable(
+  'reading_history',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    episodeId: uuid('episode_id')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    readAt: timestamptz('read_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'reading_history_pk', columns: [t.userId, t.episodeId] }),
+    index('reading_history_user_read_idx').on(t.userId, t.readAt.desc()),
+  ],
+).enableRLS();
+
+/** In-app notifications. One per user per episode per type, so a retried job can't make duplicates. */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: notificationType('type').notNull(),
+    seriesId: uuid('series_id')
+      .notNull()
+      .references(() => series.id, { onDelete: 'cascade' }),
+    episodeId: uuid('episode_id')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+    readAt: timestamptz('read_at'),
+  },
+  (t) => [
+    uniqueIndex('notifications_once_idx').on(t.userId, t.type, t.episodeId),
+    index('notifications_user_created_idx').on(t.userId, t.createdAt.desc()),
   ],
 ).enableRLS();

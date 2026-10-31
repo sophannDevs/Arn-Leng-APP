@@ -135,6 +135,8 @@ const allTables = [
   s.payments,
   s.subscriptions,
   s.plans,
+  s.notifications,
+  s.readingHistory,
   s.episodeViewsDaily,
   s.readingProgress,
   s.reports,
@@ -184,6 +186,11 @@ try {
         Object.entries(creatorProfiles).map(([email, p]) => ({ userId: userId(email), ...p })),
       );
 
+    const seriesRows: Array<{
+      id: string;
+      slug: string;
+      episodes: Array<{ id: string; number: number; status: string }>;
+    }> = [];
     for (const [seriesIndex, item] of seedSeries.entries()) {
       const [row] = await tx
         .insert(s.series)
@@ -192,6 +199,7 @@ try {
           slug: item.slug,
           title: item.title,
           description: item.description,
+          creatorName: creatorProfiles[item.creator]?.penName ?? '',
           genres: item.genres,
           status: item.status,
           isPublished: true,
@@ -234,8 +242,89 @@ try {
         });
       }
 
-      await tx.insert(s.episodes).values(episodes);
+      const inserted = await tx
+        .insert(s.episodes)
+        .values(episodes)
+        .returning({ id: s.episodes.id, number: s.episodes.number, status: s.episodes.status });
+      seriesRows.push({ id: row.id, slug: item.slug, episodes: inserted });
     }
+
+    // Engagement: a few follows, likes and comments, and 30 days of views, so every page has data.
+    const readers = [1, 2, 3, 4, 5].map((n) => userId(`reader${n}@inkline.test`));
+    const published = (row: (typeof seriesRows)[number]) =>
+      row.episodes.filter((e) => e.status === 'published');
+    await tx
+      .insert(s.follows)
+      .values(
+        readers.flatMap((reader, i) =>
+          seriesRows
+            .filter((_, j) => (i + j) % 2 === 0)
+            .map((row) => ({ userId: reader, seriesId: row.id })),
+        ),
+      );
+    await tx.insert(s.likes).values(
+      readers.flatMap((reader, i) =>
+        seriesRows.flatMap((row) => {
+          const ep = published(row)[i];
+          return ep ? [{ userId: reader, episodeId: ep.id }] : [];
+        }),
+      ),
+    );
+    const first = seriesRows[0]?.episodes[0];
+    const second = seriesRows[0]?.episodes[1];
+    if (first && second) {
+      await tx.insert(s.comments).values([
+        {
+          episodeId: first.id,
+          userId: readers[0] as string,
+          body: 'The bakery scene gave me chills.',
+          createdAt: daysFromNow(-3),
+        },
+        {
+          episodeId: first.id,
+          userId: readers[1] as string,
+          body: 'Waiting for the next episode!',
+          createdAt: daysFromNow(-2),
+        },
+        {
+          episodeId: first.id,
+          userId: readers[2] as string,
+          body: 'This comment is hidden by the creator.',
+          status: 'hidden',
+          createdAt: daysFromNow(-1),
+        },
+        {
+          episodeId: second.id,
+          userId: readers[3] as string,
+          body: 'Loved the spirit who paid with a lullaby.',
+          createdAt: daysFromNow(-1),
+        },
+      ]);
+    }
+    // Views over the last 30 days: a gentle wave per episode, never negative.
+    const views = seriesRows.flatMap((row, si) =>
+      published(row).flatMap((ep) =>
+        Array.from({ length: 30 }, (_, d) => ({
+          episodeId: ep.id,
+          date: new Date(now.getTime() - d * DAY).toISOString().slice(0, 10),
+          views: Math.max(
+            0,
+            Math.round(40 + 25 * Math.sin((d + si) / 3) + ((ep.number * 7 + d * 13 + si * 5) % 30)),
+          ),
+        })),
+      ),
+    );
+    for (let start = 0; start < views.length; start += 500)
+      await tx.insert(s.episodeViewsDaily).values(views.slice(start, start + 500));
+    // One unread notification for reader1, who follows the first series.
+    const newest = seriesRows[0] && published(seriesRows[0]).at(-1);
+    if (seriesRows[0] && newest)
+      await tx.insert(s.notifications).values({
+        userId: readers[0] as string,
+        type: 'new_episode',
+        seriesId: seriesRows[0].id,
+        episodeId: newest.id,
+      });
 
     const plans = await tx
       .insert(s.plans)

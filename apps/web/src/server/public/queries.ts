@@ -1,7 +1,7 @@
 import 'server-only';
 import { creatorProfiles, episodes, series, users } from '@inkline/db';
 import { BROWSE_PAGE_LIMIT, EPISODES_PAGE_SIZE, FREE_EPISODES, type Genre } from '@inkline/shared';
-import { and, asc, count, desc, eq, gt, lt, max, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, lt, max, sql } from 'drizzle-orm';
 import { cache } from 'react';
 import { db } from '../db';
 
@@ -123,25 +123,45 @@ export async function getSeriesByGenre(genre: Genre): Promise<SeriesCard[]> {
     .limit(BROWSE_PAGE_LIMIT);
 }
 
-/** Full-text search over title and description. Terms are matched as prefixes ("moon" finds "Moonlit"). */
-export async function searchSeries(rawQuery: string): Promise<SeriesCard[]> {
+/**
+ * Full-text search over title, description and the creator's pen name, with an optional genre
+ * filter. Terms match as prefixes ("moon" finds "Moonlit"). The expression below must match the
+ * GIN index series_search_idx exactly so PostgreSQL can use it.
+ */
+export async function searchSeries(rawQuery: string, genre?: Genre | null): Promise<SeriesCard[]> {
   const terms = rawQuery
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
     .slice(0, 8);
-  if (terms.length === 0) return [];
+  if (terms.length === 0 && !genre) return [];
   const tsQuery = terms.map((term) => `${term}:*`).join(' & ');
   return publishedSeries()
     .where(
       and(
         eq(series.isPublished, true),
-        sql`to_tsvector('simple', ${series.title} || ' ' || ${series.description}) @@ to_tsquery('simple', ${tsQuery})`,
+        genre ? sql`${series.genres} @> ARRAY[${genre}]::text[]` : undefined,
+        terms.length > 0
+          ? sql`to_tsvector('simple', ${series.title} || ' ' || ${series.description} || ' ' || ${series.creatorName}) @@ to_tsquery('simple', ${tsQuery})`
+          : undefined,
       ),
     )
     .groupBy(...cardGroup)
     .orderBy(desc(max(episodes.publishedAt)))
     .limit(BROWSE_PAGE_LIMIT);
+}
+
+/** Series cards for these ids, in the same order (ids of unpublished series are dropped). */
+export async function getSeriesCardsByIds(ids: readonly string[]): Promise<SeriesCard[]> {
+  if (ids.length === 0) return [];
+  const rows = await publishedSeries()
+    .where(and(eq(series.isPublished, true), inArray(series.id, [...ids])))
+    .groupBy(...cardGroup);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.flatMap((id) => {
+    const card = byId.get(id);
+    return card ? [card] : [];
+  });
 }
 
 export type SeriesDetail = SeriesCard & {

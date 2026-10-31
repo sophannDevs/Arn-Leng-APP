@@ -102,7 +102,10 @@ export async function runProcessEpisode(
   // Housekeeping after the episode is safely saved: a failure here is logged, never fatal.
   await removeQuietly(() => moveOriginals(deps, episodeId, uploads));
   await removeQuietly(() => removeOldRuns(deps, episodeId, result.contentHash));
-  if (!scheduledLater) await deps.revalidate({ seriesSlugs: [row.seriesSlug] });
+  if (!scheduledLater) {
+    await deps.revalidate({ seriesSlugs: [row.seriesSlug] });
+    await removeQuietly(() => deps.enqueueNotify(episodeId));
+  }
 
   return {
     outcome: scheduledLater ? 'scheduled' : 'published',

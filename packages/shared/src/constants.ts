@@ -76,3 +76,22 @@ export const READER_URL_REFRESH_MARGIN_SECONDS = 90;
 export const READER_PROGRESS_DEBOUNCE_MS = 2000;
 /** Image address requests (episode page loads and refreshes) per user or IP per window. */
 export const IMAGE_URL_RATE_LIMIT = { maxAttempts: 600, windowSeconds: 10 * 60 } as const;
+
+/** Engagement: comments, views, rankings, notifications. */
+export const COMMENT_MAX_LENGTH = 1000;
+export const COMMENTS_PAGE_SIZE = 20;
+/** Comments a user may post per window. */
+export const COMMENT_RATE_LIMIT = { maxAttempts: 10, windowSeconds: 10 * 60 } as const;
+/** Reports a user may file per window. */
+export const REPORT_RATE_LIMIT = { maxAttempts: 20, windowSeconds: 60 * 60 } as const;
+/** One view per user or device per episode per this long. */
+export const VIEW_DEDUPE_SECONDS = 30 * 60;
+/** The worker moves view counts from Redis to PostgreSQL this often. */
+export const VIEW_FLUSH_INTERVAL_MS = 60_000;
+/** Days of daily rankings kept in Redis (a week is summed from these). */
+export const RANKING_DAYS_KEPT = 9;
+export const RANKING_PAGE_LIMIT = 30;
+/** Notifications shown in the bell, and emails sent per batch. */
+export const NOTIFICATIONS_PAGE_SIZE = 20;
+export const NOTIFICATION_EMAIL_BATCH = 100;
+export const STATS_DAYS = 30;

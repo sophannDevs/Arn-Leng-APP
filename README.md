@@ -71,13 +71,25 @@ Creators and admins manage their work at `/studio`: create and edit a series (ti
 
 ## Public site and reader
 
-- **Pages:** `/` (featured, new episodes, trending placeholder, browse by genre), `/series/[slug]`, `/genres/[genre]`, `/search`, and the reader at `/series/[slug]/[number]`. `/library` and `/premium` are placeholders until Phases 6 and 7.
+- **Pages:** `/` (featured, new episodes, trending this week, browse by genre), `/series/[slug]`, `/genres/[genre]`, `/search`, `/ranking`, `/library`, and the reader at `/series/[slug]/[number]`. `/premium` is a placeholder until Phase 7.
 - **Caching:** home, series and genre pages are built once and kept for everyone (5 minutes as a safety net); the worker asks the web app to rebuild them whenever an episode is published, and studio edits do the same. They don't depend on who is signed in: the account menu and "Continue reading" load in the browser. The reader is different for every reader, so it is never cached (`Cache-Control: no-store`).
 - **Reader access:** the server decides with the access rule from `CLAUDE.md` first. Only if the reader may read the episode does it ask `packages/storage` for image addresses, so a locked episode returns just the lock screen (no addresses, no storage keys, no blur previews). `POST /api/episodes/{id}/image-urls` applies the same rule. Both are rate limited per user (or per IP when signed out).
 - **Image addresses** are signed in 5-minute windows, so everyone in a window gets the same addresses (browsers can reuse images) and each stays valid for 10 to 15 minutes. The reader asks for fresh ones for chunks that haven't loaded yet when they are close to expiring. Swapping in a Cloudflare Worker later only means replacing `createPresignedEpisodeImageSigner`.
 - **Reading progress:** saved for signed-in readers while they scroll (every 2 seconds at most, and when the tab is hidden); the series page then offers "Continue Ep. N".
 - **Performance:** Lighthouse (mobile, production build, local database) scored 100 on home and 93 to 100 on series and reader pages, with no layout shift. To measure yourself: `pnpm --filter @inkline/web build`, then `next start`, then Lighthouse. A production build needs real secrets (not the development placeholders), `RESEND_API_KEY` and Turnstile keys.
 - **Sample content:** `pnpm seed:images` also makes covers for the seeded series.
+
+## Engagement, rankings and search
+
+- **Follow and like:** `PUT /api/follows/{seriesId}` and `PUT /api/episodes/{id}/like` (idempotent, signed-in only). Counts are shown on the series page and in the studio.
+- **My library** (`/library`): three tabs, _Following_, _Continue reading_ and _History_ (with "Clear history"). Per user, never cached.
+- **Comments:** plain text, 1 to 1000 characters, rate limited, newest first with cursor pagination on `(created_at, id)`. They follow the episode's access rule, so a locked episode's comments are not readable either. Who may do what is decided in one place, `packages/shared/src/engagement.ts`: you delete your own; you report other people's; a creator hides comments on their own series; an admin hides any (hidden comments stay visible, marked, to those who can hide them). Reports are stored (`reports`); the review queue arrives with the admin area (Phase 10).
+- **Views:** the reader calls `POST /api/views` once per page load. A Redis key `view:{episode}:{viewer}` with a 30-minute expiry (`SET NX EX`) decides whether it counts, so refreshing adds nothing; the viewer is the user, or a random `inkline_device` cookie when signed out. A counted view increments `views:pending` and today's ranking set. The creator's own reading is not counted. The worker's `flush-views` job (every 60 s) renames `views:pending`, adds it to `episode_views_daily` and deletes it; if it crashes midway the next run finishes the renamed hash first.
+- **Rankings:** Redis sorted sets `rank:day:{YYYY-MM-DD}` (kept 8 days). Daily is today's set; weekly is a `ZUNIONSTORE` of the last 7 days, cached 2 minutes. If Redis is empty (restart) the ranking is rebuilt from `episode_views_daily`. Shown on the home page (top 5, weekly) and at `/ranking/daily` and `/ranking/weekly`.
+- **Search:** `GET /api/search?q=&genre=` and `/search` (input debounced 250 ms, URL kept in sync). PostgreSQL full-text (`to_tsvector('simple', title || description || creator_name)`) with the GIN index `series_search_idx`; the expression in the query must stay identical to the index. `series.creator_name` is a copy of the creator's pen name kept so one index can cover it.
+- **Notifications:** when an episode is published (by `process-episode` or `publish-scheduled`) the worker queues `notify-followers` (one job per episode). It creates an in-app notification per follower (unique per user and episode) and, for followers who turned on email in their account, sends emails in batches of 100. Only users whose notification was created in that run get an email, so a retry never emails twice. The bell in the header shows the unread count; `/notifications` lists them. Without `RESEND_API_KEY` the worker only logs that it would have sent an email.
+- **Creator stats:** each series page in `/studio` shows views for the last 30 days (daily chart and per episode), followers and likes.
+- **Seed data:** `pnpm db:seed` adds follows, likes, comments, 30 days of views and one unread notification.
 
 ## Image processing
 
@@ -158,6 +170,7 @@ The build follows the phase plan in the project's build prompt. Each phase ends 
 - [x] Phase 3: creator studio and uploads
 - [x] Phase 4: image processing worker
 - [x] Phase 5: public site and reader
-- [ ] Phases 6–11: engagement, subscriptions, PayWay, security, admin, deployment
+- [x] Phase 6: engagement, rankings and search
+- [ ] Phases 7–11: subscriptions, PayWay, security, admin, deployment
 
 # Arn-Leng-APP

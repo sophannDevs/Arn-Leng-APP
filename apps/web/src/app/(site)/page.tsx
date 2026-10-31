@@ -19,6 +19,7 @@ import {
   getNewEpisodes,
   getTrendingSeries,
 } from '@/server/public/queries';
+import { getRanking } from '@/server/engagement/rankings';
 
 // Built once and kept: the worker asks the web app to refresh it whenever an episode is published
 // (POST /api/internal/revalidate). The time below is only a safety net.
@@ -39,13 +40,16 @@ const dateFormat = new Intl.DateTimeFormat('en', {
 });
 
 export default async function HomePage() {
-  const [t, featured, newEpisodes, trending, genres] = await Promise.all([
+  const [t, featured, newEpisodes, ranked, fallbackTrending, genres] = await Promise.all([
     getTranslations('home'),
     getFeaturedSeries(12),
     getNewEpisodes(8),
+    getRanking('weekly', 5),
     getTrendingSeries(5),
     getGenreCounts(),
   ]);
+  // Before anyone has read anything there is no ranking: show series with the most episodes instead.
+  const trending = ranked.length > 0 ? ranked : fallbackTrending;
   const tGenres = await getTranslations('genres.names');
   const tEpisodes = await getTranslations('series.episodes');
   const now = new Date();
@@ -226,7 +230,6 @@ export default async function HomePage() {
 
             <div className="rounded-panel border-2 border-ink bg-white p-[18px] shadow-pop">
               <h2 className="m-0 mb-3 font-display text-2xl font-bold">{t('trending.title')}</h2>
-              {/* TODO(Phase 6): rank by views from Redis / episode_views_daily instead of episode count. */}
               <ol className="m-0 flex list-none flex-col p-0">
                 {trending.map((series, index) => (
                   <li key={series.id} className="border-t border-[#e6e2db] first:border-t-0">
@@ -247,7 +250,15 @@ export default async function HomePage() {
                   </li>
                 ))}
               </ol>
-              <p className="mt-3 mb-0 text-[11px] text-soft">{t('trending.note')}</p>
+              <p className="mt-3 mb-0 text-[11px] text-soft">
+                {ranked.length > 0 ? t('trending.note') : t('trending.fallback')}
+              </p>
+              <Link
+                href="/ranking/weekly"
+                className="mt-2 inline-block text-[13px] font-semibold text-brand"
+              >
+                {t('trending.all')}
+              </Link>
             </div>
           </section>
 

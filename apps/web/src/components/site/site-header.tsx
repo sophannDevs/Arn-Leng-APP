@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { AccountMenu } from './account-menu';
+import { NotificationBell } from './notification-bell';
 import { SearchBox } from './search-box';
 
 /** Logo, search, links and account menu. Server-rendered and the same for everyone, so pages stay cacheable. */
@@ -18,11 +19,17 @@ export async function SiteHeader() {
         <Link href="/library" className="inline-flex min-h-11 items-center hover:text-brand">
           {t('nav.library')}
         </Link>
+        <Link href="/ranking/daily" className="inline-flex min-h-11 items-center hover:text-brand">
+          {t('nav.ranking')}
+        </Link>
         <Link href="/premium" className="inline-flex min-h-11 items-center hover:text-brand">
           {t('nav.premium')}
         </Link>
       </nav>
-      <AccountMenu />
+      <div className="flex items-center gap-1">
+        <NotificationBell />
+        <AccountMenu />
+      </div>
     </header>
   );
 }

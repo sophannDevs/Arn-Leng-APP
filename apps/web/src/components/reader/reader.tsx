@@ -9,6 +9,8 @@ import {
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { Comments } from '@/components/engagement/comments';
+import { LikeButton } from '@/components/engagement/like-button';
 
 export type ReaderChunkView = {
   position: number;
@@ -148,6 +150,16 @@ export function Reader(props: ReaderProps) {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [refreshUrls]);
+
+  // ---- count this read (once per page load; the server ignores repeats inside 30 minutes) ----------
+  useEffect(() => {
+    void fetch('/api/views', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ episodeId: episode.id }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }, [episode.id]);
 
   // ---- reading progress, the progress bar, and prefetching the next episode --------------------
   const saveProgress = useCallback(
@@ -392,6 +404,7 @@ export function Reader(props: ReaderProps) {
 
         {/* End of the episode */}
         <section
+          onClick={(event) => event.stopPropagation()}
           className="flex flex-col items-center gap-3.5 bg-paper px-5 pt-9 pb-[120px] text-center text-text"
           aria-label={t('end.title', { number: episode.number })}
         >
@@ -415,6 +428,10 @@ export function Reader(props: ReaderProps) {
           >
             {t('end.back')}
           </Link>
+          <LikeButton episodeId={episode.id} variant="card" />
+          <div className="mt-6 flex w-full justify-center border-t-2 border-ink/15 pt-6">
+            <Comments episodeId={episode.id} />
+          </div>
         </section>
       </main>
 
@@ -437,6 +454,7 @@ export function Reader(props: ReaderProps) {
               ‹ {t('prev')}
             </span>
           )}
+          <LikeButton episodeId={episode.id} variant="bar" />
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
