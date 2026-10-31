@@ -35,7 +35,9 @@ export const SUBSCRIPTION_STATUSES = ['active', 'past_due', 'canceled', 'expired
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 
 // The international provider is added here (and to the database enum) when it is chosen.
-export const PAYMENT_PROVIDERS = ['payway'] as const;
+// 'fake' is the development and test provider (never enabled in production); 'complimentary' marks
+// subscriptions an admin granted for free, which have no provider and no payments.
+export const PAYMENT_PROVIDERS = ['payway', 'fake', 'complimentary'] as const;
 export type PaymentProviderId = (typeof PAYMENT_PROVIDERS)[number];
 
 export const PAYMENT_STATUSES = ['pending', 'succeeded', 'failed', 'refunded'] as const;

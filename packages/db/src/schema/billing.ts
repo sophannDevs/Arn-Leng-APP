@@ -38,6 +38,8 @@ export const subscriptions = pgTable(
     currentPeriodStart: timestamptz('current_period_start').notNull(),
     currentPeriodEnd: timestamptz('current_period_end').notNull(),
     cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    /** A plan change the subscriber asked for: it takes effect at the next renewal. Null = keep the plan. */
+    nextPlanId: uuid('next_plan_id').references(() => plans.id, { onDelete: 'restrict' }),
     graceUntil: timestamptz('grace_until'),
     createdAt: createdAt(),
   },
@@ -61,6 +63,8 @@ export const payments = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }),
     provider: paymentProvider('provider').notNull(),
+    /** The plan this payment buys, so a verified payment knows what to activate or renew. */
+    planId: uuid('plan_id').references(() => plans.id, { onDelete: 'restrict' }),
     // Null until the provider assigns one; the unique index makes callbacks idempotent.
     providerTxnId: text('provider_txn_id').unique(),
     amountMinor: integer('amount_minor').notNull(),

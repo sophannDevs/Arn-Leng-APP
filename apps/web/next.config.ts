@@ -9,7 +9,7 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  transpilePackages: ['@inkline/shared', '@inkline/db', '@inkline/storage'],
+  transpilePackages: ['@inkline/shared', '@inkline/db', '@inkline/payments', '@inkline/storage'],
   // Lets server code call forbidden() (HTTP 403) from pages and server actions.
   experimental: { authInterrupts: true },
 };

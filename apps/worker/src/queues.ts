@@ -16,6 +16,8 @@ export const QUEUES = {
   publishScheduled: 'publish-scheduled',
   /** Runs by itself every 60 seconds: moves view counts from Redis to PostgreSQL. */
   flushViews: QUEUE_FLUSH_VIEWS,
+  /** Runs by itself every 10 minutes: marks subscriptions whose access has ended as expired. */
+  expireSubscriptions: 'expire-subscriptions',
   /** Queued when an episode is published: in-app notifications and emails for followers. */
   notifyFollowers: QUEUE_NOTIFY_FOLLOWERS,
 } as const;

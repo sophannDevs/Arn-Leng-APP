@@ -1,16 +1,19 @@
 import {
+  auditLogs,
   createDb,
   creatorProfiles,
   episodeImages,
   episodeUploads,
   episodes,
+  payments,
   plans,
   readingProgress,
   series,
   subscriptions,
   users,
 } from '@inkline/db';
-import { and, asc, eq, inArray, like } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, like, or } from 'drizzle-orm';
+import { Redis } from 'ioredis';
 
 export const E2E_EMAIL_PREFIX = 'e2e-';
 export const E2E_EMAIL_DOMAIN = '@inkline.test';
@@ -330,9 +333,67 @@ export function deleteTestUsers() {
       await db.select({ id: users.id }).from(users).where(like(users.email, pattern))
     ).map((u) => u.id);
     if (ids.length === 0) return;
+    await db.delete(payments).where(inArray(payments.userId, ids));
     await db.delete(subscriptions).where(inArray(subscriptions.userId, ids));
+    await db
+      .delete(auditLogs)
+      .where(or(inArray(auditLogs.actorId, ids), inArray(auditLogs.targetId, ids)));
     await db.delete(plans).where(like(plans.code, 'e2e-%'));
     await db.delete(series).where(inArray(series.creatorId, ids));
     await db.delete(users).where(inArray(users.id, ids));
   });
+}
+
+/** Subscriptions of a user, newest first. */
+export function getSubscriptions(userId: string) {
+  return withDb((db) =>
+    db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
+      .orderBy(desc(subscriptions.createdAt)),
+  );
+}
+
+export function getPayments(userId: string) {
+  return withDb((db) =>
+    db.select().from(payments).where(eq(payments.userId, userId)).orderBy(desc(payments.createdAt)),
+  );
+}
+
+export function getAuditLogs(action: string, targetId: string) {
+  return withDb((db) =>
+    db
+      .select()
+      .from(auditLogs)
+      .where(and(eq(auditLogs.action, action), eq(auditLogs.targetId, targetId))),
+  );
+}
+
+/** The web app caches a user's subscriptions for 60 s. Tests that change them in the database clear it, as the app does. */
+export async function clearEntitlementCache(userId: string) {
+  const redis = new Redis(process.env.REDIS_URL ?? '');
+  try {
+    await redis.del(`entitlement:${userId}`);
+  } finally {
+    redis.disconnect();
+  }
+}
+
+/**
+ * Jumps a user's subscription forward in time: its paid period ended a day ago. With `status`
+ * 'expired' it also does what the expire-subscriptions job does. Clears the cache like the app would.
+ */
+export async function endSubscriptionPeriod(userId: string, status?: 'expired') {
+  await withDb((db) =>
+    db
+      .update(subscriptions)
+      .set({
+        currentPeriodStart: new Date(Date.now() - 31 * 86_400_000),
+        currentPeriodEnd: new Date(Date.now() - 86_400_000),
+        ...(status ? { status } : {}),
+      })
+      .where(eq(subscriptions.userId, userId)),
+  );
+  await clearEntitlementCache(userId);
 }

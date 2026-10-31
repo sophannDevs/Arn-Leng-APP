@@ -218,6 +218,13 @@
       "become": "Become a creator",
       "openStudio": "Open creator studio",
       "openAdmin": "Open admin"
+    },
+    "subscription": {
+      "title": "Subscription",
+      "none": "You're on the free plan.",
+      "active": "Premium until {date}.",
+      "manage": "Manage subscription",
+      "plans": "See plans"
     }
   },
   "creator": {
@@ -427,7 +434,27 @@
     "lead": "Moderation and management.",
     "usersWithRole": "{role}: {count}",
     "soon": "Moderation tools are coming soon.",
-    "account": "Back to account"
+    "account": "Back to account",
+    "subscriptions": {
+      "link": "Complimentary subscriptions",
+      "title": "Complimentary subscriptions",
+      "lead": "Give someone Premium for free. It ends by itself and is written to the audit log.",
+      "back": "Back to admin",
+      "email": "User's email",
+      "months": "Length",
+      "monthsOption": "{count, plural, one {# month} other {# months}}",
+      "note": "Note (optional)",
+      "submit": "Grant Premium",
+      "working": "Granting…",
+      "ok": "Granted. Premium runs until {date}.",
+      "errors": {
+        "user_not_found": "No user with that email.",
+        "already_subscribed": "That user already has Premium.",
+        "plan_missing": "The monthly plan is missing.",
+        "invalid_request": "Check the email and length.",
+        "failed": "That didn't work. Try again."
+      }
+    }
   },
   "forbidden": {
     "title": "No access",
@@ -731,5 +758,162 @@
     "views": "Views",
     "none": "No episodes published yet.",
     "tip": "{views} views · {day}"
+  },
+  "subscribe": {
+    "title": "Premium",
+    "description": "Inkline Premium: read new episodes {days} days early. {monthly} a month or {yearly} a year.",
+    "eyebrow": "INKLINE PREMIUM",
+    "heading1": "Read every new episode",
+    "heading2": "a week early",
+    "lead": "The first {free} episodes of every series are always free. Premium unlocks everything else the moment it's published.",
+    "member": "You're Premium. Manage your plan any time.",
+    "manage": "Manage subscription",
+    "plansLabel": "Plans",
+    "perks": {
+      "early": "Every early-access episode, the day it drops",
+      "only": "Subscriber-only episodes from creators",
+      "ads": "Ad-free reading on every device",
+      "support": "Supports the creators you follow"
+    },
+    "plan": {
+      "perMonth": "/ month",
+      "perYear": "/ year",
+      "monthlyNote": "Billed every month. Cancel anytime.",
+      "yearlyNote": "About {perMonth} a month, billed once a year.",
+      "save": "SAVE {percent}%",
+      "choose": "Choose {name}",
+      "login": "Log in to subscribe",
+      "current": "Your current plan"
+    },
+    "checkout": {
+      "title": "Checkout",
+      "item": "Inkline Premium · {name}",
+      "renews": "Renews every {interval} until you cancel",
+      "interval": {
+        "month": "month",
+        "year": "year"
+      },
+      "body": "You'll be sent to our payment partner to pay. Access starts as soon as the payment is confirmed.",
+      "pay": "Pay {price}",
+      "paying": "Taking you to checkout…",
+      "cancel": "Not now",
+      "already": "You already have Premium.",
+      "failed": "Checkout didn't start. Try again.",
+      "limited": "Too many attempts. Wait a minute and try again.",
+      "demo": "Test checkout: no real payment is taken."
+    },
+    "faq": {
+      "eyebrow": "Questions",
+      "title": "Good to know",
+      "free": {
+        "q": "What's free without Premium?",
+        "a": "Episodes 1 to {free} of every series, plus every episode once it is more than {days} days old. Some creators keep a few special episodes subscriber-only."
+      },
+      "pay": {
+        "q": "How do I pay?",
+        "a": "Checkout runs through our payment partner with your card or bank account. Your plan renews automatically at the end of each period."
+      },
+      "cancel": {
+        "q": "Can I cancel anytime?",
+        "a": "Yes. Cancel from your account and you keep Premium until the end of the period you already paid for. You can resume before then with one tap."
+      },
+      "fail": {
+        "q": "What if a payment fails?",
+        "a": "We retry on days 1, 3 and 5 and email you to update your payment method. You keep access for a {grace}-day grace period while we sort it out."
+      }
+    }
+  },
+  "confirm": {
+    "title": "Confirming your payment",
+    "pending": "Confirming your payment…",
+    "pendingNote": "Waiting for our payment partner to confirm. Please keep this page open. It can take a moment.",
+    "slow": "Still waiting. Your payment may be taking longer than usual. You can leave this page: Premium turns on by itself as soon as the payment is confirmed.",
+    "succeeded": "You're Premium!",
+    "succeededNote": "Payment confirmed. Every episode is now unlocked, including early access.",
+    "continue": "Continue reading",
+    "readNew": "Read new episodes",
+    "manage": "Manage subscription",
+    "failed": "The payment didn't go through",
+    "failedNote": "You haven't been charged. You can try again with the same or another payment method.",
+    "tryAgain": "Back to plans",
+    "unknown": "We couldn't find that payment.",
+    "error": "We couldn't check your payment. Retrying…"
+  },
+  "fakePay": {
+    "title": "Test payment page",
+    "lead": "This stands in for the payment provider while we build. No money moves.",
+    "amount": "Amount",
+    "ok": "Pay now (success)",
+    "fail": "Decline the payment",
+    "delayed": "Pay now, confirmation arrives late",
+    "working": "Working…",
+    "done": "Done. Taking you back…",
+    "already": "This payment was already completed.",
+    "error": "That didn't work. Try again."
+  },
+  "subscription": {
+    "title": "Subscription",
+    "back": "Back to account",
+    "none": "You don't have a subscription.",
+    "see": "See plans",
+    "status": {
+      "active": "Active",
+      "past_due": "Payment overdue",
+      "canceled": "Cancels {date}",
+      "expired": "Expired"
+    },
+    "facts": {
+      "plan": "Plan",
+      "next": "Next billing date",
+      "until": "Access until",
+      "since": "Member since",
+      "method": "Payment method",
+      "grace": "Retrying until"
+    },
+    "planValue": "{name} · {price}/{interval}",
+    "method": {
+      "payway": "ABA PayWay",
+      "fake": "Test provider",
+      "complimentary": "Complimentary (from Inkline)"
+    },
+    "notes": {
+      "renews": "Renews automatically. You can cancel anytime.",
+      "canceled": "Your plan will not renew. You keep Premium until the date above.",
+      "pastDue": "We couldn't charge your payment method. You keep Premium while we retry, until the date above.",
+      "expired": "Your subscription has ended. Subscribe again to read subscriber-only episodes.",
+      "complimentary": "Premium was given to you by Inkline and won't renew.",
+      "switching": "Switching to {name} at your next renewal on {date}."
+    },
+    "cancel": "Cancel subscription",
+    "resume": "Resume subscription",
+    "switchTo": "Switch to {name} at renewal",
+    "keepPlan": "Keep {name} plan",
+    "confirmCancel": {
+      "title": "Cancel Premium?",
+      "body": "You'll keep Premium until {date}. After that, early-access episodes lock again until they turn free.",
+      "yes": "Yes, cancel",
+      "no": "Keep Premium"
+    },
+    "done": {
+      "cancel": "Canceled. Premium stays on until {date}.",
+      "resume": "Welcome back! Your plan will renew as usual.",
+      "switch": "Plan change saved.",
+      "keep": "You'll stay on your current plan."
+    },
+    "failed": "That didn't work. Refresh and try again.",
+    "history": {
+      "title": "Payment history",
+      "date": "Date",
+      "amount": "Amount",
+      "status": "Status",
+      "reference": "Reference",
+      "empty": "No payments yet.",
+      "statuses": {
+        "pending": "Pending",
+        "succeeded": "Paid",
+        "failed": "Failed",
+        "refunded": "Refunded"
+      }
+    }
   }
 }

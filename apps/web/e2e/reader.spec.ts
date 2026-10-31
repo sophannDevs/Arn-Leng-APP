@@ -249,7 +249,10 @@ test('a locked episode shows a lock screen and never sends an image address', as
     page.getByRole('heading', { name: 'This episode is for subscribers' }),
   ).toBeVisible();
   await expect(page.getByText('Free in 3 days')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Subscribe' })).toHaveAttribute('href', '/premium');
+  await expect(page.getByRole('link', { name: 'Subscribe' })).toHaveAttribute(
+    'href',
+    /^\/subscribe\?return=%2Fseries%2F/,
+  );
   await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Back to series' })).toHaveAttribute(
     'href',

@@ -13,6 +13,11 @@ test('sign up, verify email, log in and log out', async ({ page, baseURL }) => {
   await page.getByLabel('Name').fill('E2E Tester');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(PASSWORD);
+  // The button turns on the moment the Turnstile token arrives, but the widget is still finishing
+  // its own success animation, and a click in that first second is swallowed by it (it never reaches
+  // the page: seen in 25 to 50% of runs). Give it a moment; a person takes longer than that anyway.
+  await expect(page.getByRole('button', { name: 'Create account' })).toBeEnabled();
+  await page.waitForTimeout(1500);
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByText(/we sent a confirmation link/i)).toBeVisible();
 

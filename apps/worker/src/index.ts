@@ -3,6 +3,7 @@ import { type Job, Queue, Worker } from 'bullmq';
 import { createJobDeps } from './deps';
 import { parseWorkerEnv } from './env';
 import { processExampleJob } from './jobs/example';
+import { runExpireSubscriptions } from './jobs/expire-subscriptions';
 import { runFlushViews } from './jobs/flush-views';
 import { runNotifyFollowers } from './jobs/notify-followers';
 import { runProcessImage } from './jobs/process-image';
@@ -68,6 +69,11 @@ const workers = [
   // One at a time: two flushes at once would fight over the same Redis hash.
   new Worker(QUEUES.flushViews, () => runFlushViews(deps), { connection, concurrency: 1 }),
 
+  new Worker(QUEUES.expireSubscriptions, () => runExpireSubscriptions(deps), {
+    connection,
+    concurrency: 1,
+  }),
+
   new Worker(QUEUES.notifyFollowers, (job: Job) => runNotifyFollowers(deps, job.data), {
     connection,
     concurrency: 1,
@@ -84,6 +90,8 @@ for (const worker of workers) {
     )
       return;
     if (worker.name === QUEUES.flushViews && (result as { rows: number }).rows === 0) return;
+    if (worker.name === QUEUES.expireSubscriptions && (result as { expired: number }).expired === 0)
+      return;
     console.info(`[worker] ${worker.name}#${job.id} done:`, JSON.stringify(result));
   });
   worker.on('failed', (job, err) =>
@@ -108,11 +116,19 @@ await flushScheduler.upsertJobScheduler(
   { name: 'flush', opts: { removeOnComplete: 10, removeOnFail: 50 } },
 );
 
+const expireScheduler = new Queue(QUEUES.expireSubscriptions, { connection });
+await expireScheduler.upsertJobScheduler(
+  'expire-subscriptions-every-10-minutes',
+  { every: 10 * 60_000 },
+  { name: 'expire', opts: { removeOnComplete: 10, removeOnFail: 50 } },
+);
+
 async function shutdown(signal: string) {
   console.info(`[worker] ${signal} received, finishing current jobs…`);
   await Promise.all(workers.map((w) => w.close()));
   await scheduler.close();
   await flushScheduler.close();
+  await expireScheduler.close();
   await closeDb();
   await connection.quit();
   process.exit(0);

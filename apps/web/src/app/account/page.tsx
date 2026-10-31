@@ -11,6 +11,7 @@ import { TwoFactorPanel } from '@/components/account/two-factor-panel';
 import { Logo } from '@/components/logo';
 import { FormMessage, Panel, linkClass } from '@/components/ui';
 import { requireUser } from '@/server/auth/session';
+import { getSubscriptionOverview } from '@/server/billing/manage';
 import { db } from '@/server/db';
 import { publicUrl } from '@/server/storage';
 
@@ -24,6 +25,8 @@ export default async function AccountPage() {
     .where(and(eq(accounts.userId, user.id), eq(accounts.providerId, 'credential')))
     .limit(1);
   const hasPassword = Boolean(credential);
+  const subscription = await getSubscriptionOverview(user.id);
+  const tSub = await getTranslations('account.subscription');
   const [prefs] = await db
     .select({ emailNotifications: users.emailNotifications })
     .from(users)
@@ -57,6 +60,22 @@ export default async function AccountPage() {
               : null
           }
         />
+      </Panel>
+
+      <Panel title={tSub('title')}>
+        <p className="m-0 text-sm" data-testid="account-subscription">
+          {subscription?.entitled
+            ? tSub('active', {
+                date: new Intl.DateTimeFormat('en', {
+                  dateStyle: 'medium',
+                  timeZone: 'UTC',
+                }).format(new Date(subscription.currentPeriodEnd)),
+              })
+            : tSub('none')}
+        </p>
+        <Link href={subscription ? '/account/subscription' : '/subscribe'} className={linkClass}>
+          {subscription ? tSub('manage') : tSub('plans')}
+        </Link>
       </Panel>
 
       <Panel title={t('notifications.title')} description={t('notifications.description')}>

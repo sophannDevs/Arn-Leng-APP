@@ -22,7 +22,7 @@ export async function SiteHeader() {
         <Link href="/ranking/daily" className="inline-flex min-h-11 items-center hover:text-brand">
           {t('nav.ranking')}
         </Link>
-        <Link href="/premium" className="inline-flex min-h-11 items-center hover:text-brand">
+        <Link href="/subscribe" className="inline-flex min-h-11 items-center hover:text-brand">
           {t('nav.premium')}
         </Link>
       </nav>

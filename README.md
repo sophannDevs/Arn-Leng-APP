@@ -71,7 +71,7 @@ Creators and admins manage their work at `/studio`: create and edit a series (ti
 
 ## Public site and reader
 
-- **Pages:** `/` (featured, new episodes, trending this week, browse by genre), `/series/[slug]`, `/genres/[genre]`, `/search`, `/ranking`, `/library`, and the reader at `/series/[slug]/[number]`. `/premium` is a placeholder until Phase 7.
+- **Pages:** `/` (featured, new episodes, trending this week, browse by genre), `/series/[slug]`, `/genres/[genre]`, `/search`, `/ranking`, `/library`, `/subscribe` and the reader at `/series/[slug]/[number]`.
 - **Caching:** home, series and genre pages are built once and kept for everyone (5 minutes as a safety net); the worker asks the web app to rebuild them whenever an episode is published, and studio edits do the same. They don't depend on who is signed in: the account menu and "Continue reading" load in the browser. The reader is different for every reader, so it is never cached (`Cache-Control: no-store`).
 - **Reader access:** the server decides with the access rule from `CLAUDE.md` first. Only if the reader may read the episode does it ask `packages/storage` for image addresses, so a locked episode returns just the lock screen (no addresses, no storage keys, no blur previews). `POST /api/episodes/{id}/image-urls` applies the same rule. Both are rate limited per user (or per IP when signed out).
 - **Image addresses** are signed in 5-minute windows, so everyone in a window gets the same addresses (browsers can reuse images) and each stays valid for 10 to 15 minutes. The reader asks for fresh ones for chunks that haven't loaded yet when they are close to expiring. Swapping in a Cloudflare Worker later only means replacing `createPresignedEpisodeImageSigner`.
@@ -90,6 +90,18 @@ Creators and admins manage their work at `/studio`: create and edit a series (ti
 - **Notifications:** when an episode is published (by `process-episode` or `publish-scheduled`) the worker queues `notify-followers` (one job per episode). It creates an in-app notification per follower (unique per user and episode) and, for followers who turned on email in their account, sends emails in batches of 100. Only users whose notification was created in that run get an email, so a retry never emails twice. The bell in the header shows the unread count; `/notifications` lists them. Without `RESEND_API_KEY` the worker only logs that it would have sent an email.
 - **Creator stats:** each series page in `/studio` shows views for the last 30 days (daily chart and per episode), followers and likes.
 - **Seed data:** `pnpm db:seed` adds follows, likes, comments, 30 days of views and one unread notification.
+
+## Subscriptions and access control
+
+- **Plans:** `/subscribe` (monthly $4.99, yearly $49.99, perks, FAQ). `/premium` redirects there. The locked screen in the reader links to `/subscribe?return=…`, so "Continue reading" brings you back to the episode.
+- **State machine:** `packages/shared/src/billing.ts` (`activate`, `renew`, `markPastDue`, `cancelAtPeriodEnd`, `resume`, `expire`). They take a state and return the next one, or throw `InvalidTransitionError`; every status × action pair is unit tested. The database code (`apps/web/src/server/billing/*`) only calls them. Canceling sets status `canceled` (still entitled until `current_period_end`); the worker's `expire-subscriptions` job (every 10 minutes) moves it to `expired`, but access never waits for that job because the access rule compares dates with the clock.
+- **Payments:** `packages/payments` has the `PaymentProvider` interface (CLAUDE.md's six methods) and `FakePaymentProvider` (success, failure, delayed callback; signed callbacks; the "real" status is only available through `getTransactionStatus`). The fake is development and test only: its pages (`/checkout/fake/…`, `/api/dev/…`, `/api/webhooks/payments/fake`) return 404 in production, and `getPaymentProvider()` in `server/billing/provider.ts` is the one place PayWay replaces it in Phase 8.
+- **Never trust the redirect:** checkout (`POST /api/checkout`) only records a pending payment. Access starts in `server/billing/callbacks.ts`, which (1) verifies the callback signature, (2) records `webhook_events.event_id` so a repeat does nothing, (3) asks the provider for the real status, (4) checks amount and currency against the payment, and only then marks it `succeeded` and creates the subscription, in one transaction. The "Confirming your payment" page (`/subscribe/confirm`) polls `GET /api/payments/{id}/status`, which only reads our own records.
+- **Account > Subscription** (`/account/subscription`): plan, next billing date, payment history, cancel (keeps access until the period ends), resume, and switch plan at the next renewal (`subscriptions.next_plan_id`; applied by the renewal job in Phase 8).
+- **Entitlement cache:** a user's subscriptions are cached in Redis for 60 s (`entitlement:{userId}`) and cleared by every code path that changes one (payment verified, cancel, resume, switch, admin grant, worker expiry). The reader's access check uses it. It caches the subscriptions, not a yes/no answer, so a canceled subscription still stops at its end date.
+- **Complimentary subscriptions:** admins open `/admin/subscriptions` (or `POST /api/admin/subscriptions/grant`) to give someone 1, 3, 6 or 12 months. It is a real subscription with provider `complimentary`, no payments and no renewal, and is written to `audit_logs` (`subscription.grant_complimentary`, with the admin as actor). Payment results are audited too (`payment.succeeded`, `payment.failed`, `payment.mismatch`).
+- **Not in this phase:** real payments, saved card tokens, renewals and retries, the daily reconciliation job and refunds (Phase 8); the full admin dashboard (Phase 10).
+- **Trying it:** sign in, open a locked episode, press Subscribe, pick a plan, then choose an outcome on the test payment page ("Pay now", "Pay now, confirmation arrives late" or "Decline").
 
 ## Image processing
 
@@ -171,6 +183,7 @@ The build follows the phase plan in the project's build prompt. Each phase ends 
 - [x] Phase 4: image processing worker
 - [x] Phase 5: public site and reader
 - [x] Phase 6: engagement, rankings and search
-- [ ] Phases 7–11: subscriptions, PayWay, security, admin, deployment
+- [x] Phase 7: subscriptions and access control (fake payment provider)
+- [ ] Phases 8–11: PayWay, security, admin, deployment
 
 # Arn-Leng-APP

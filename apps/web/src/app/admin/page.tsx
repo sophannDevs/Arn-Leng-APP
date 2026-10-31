@@ -15,6 +15,9 @@ export default async function AdminPage() {
         ))}
       </ul>
       <p className="m-0 text-sm text-muted">{t('soon')}</p>
+      <Link href="/admin/subscriptions" className={linkClass}>
+        {t('subscriptions.link')}
+      </Link>
       <Link href="/account" className={linkClass}>
         {t('account')}
       </Link>

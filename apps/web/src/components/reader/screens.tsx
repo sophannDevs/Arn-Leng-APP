@@ -47,7 +47,7 @@ export async function LockedScreen({ data, renderedAt }: { data: Locked; rendere
           )}
         </p>
         <Link
-          href="/premium"
+          href={`/subscribe?return=${encodeURIComponent(`/series/${data.series.slug}/${data.episode.number}`)}`}
           className={`${buttonBase} bg-brand text-white shadow-cta hover:bg-brand-dark`}
         >
           {t('lock.subscribe')}

@@ -85,7 +85,7 @@ export default async function HomePage() {
               {t('startReading')}
             </a>
             <Link
-              href="/premium"
+              href="/subscribe"
               className="inline-flex min-h-[52px] items-center rounded-xl border-2 border-ink bg-white px-7 font-display text-lg font-bold text-ink no-underline hover:bg-paper"
             >
               {t('seePremium')}
@@ -327,7 +327,7 @@ export default async function HomePage() {
             </p>
           </div>
           <Link
-            href="/premium"
+            href="/subscribe"
             className="inline-flex min-h-[52px] items-center rounded-xl border-2 border-ink bg-white px-7 font-display text-lg font-bold text-ink no-underline shadow-[4px_5px_0_#111] hover:bg-paper"
           >
             {t('premium.cta')}

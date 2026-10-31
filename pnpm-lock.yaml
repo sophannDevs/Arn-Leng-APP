@@ -23,6 +23,9 @@ importers:
       '@inkline/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@inkline/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
       '@inkline/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -199,6 +202,10 @@ importers:
         version: 5.9.3
 
   packages/payments:
+    dependencies:
+      '@inkline/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@inkline/config':
         specifier: workspace:*
@@ -212,6 +219,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   packages/shared:
     dependencies:

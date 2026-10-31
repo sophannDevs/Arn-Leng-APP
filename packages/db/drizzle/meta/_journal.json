@@ -57,6 +57,20 @@
       "when": 1793410980907,
       "tag": "0007_backfill-creator-name",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793413757730,
+      "tag": "0008_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793413835940,
+      "tag": "0009_payment-plan",
+      "breakpoints": true
     }
   ]
 }

@@ -20,7 +20,7 @@ export async function SiteFooter() {
           <Link href="/library" className="inline-flex min-h-11 items-center hover:text-pop">
             {t('nav.library')}
           </Link>
-          <Link href="/premium" className="inline-flex min-h-11 items-center hover:text-pop">
+          <Link href="/subscribe" className="inline-flex min-h-11 items-center hover:text-pop">
             {t('nav.premium')}
           </Link>
         </nav>

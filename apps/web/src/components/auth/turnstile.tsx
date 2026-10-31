@@ -72,7 +72,7 @@ export function Turnstile({
     };
   }, [siteKey, resetKey]);
 
-  // The widget is 65 px tall once it loads. Reserve that space now so the form below it doesn't
+  // The widget is about 72 px tall once it loads. Reserve that space now so the form below it doesn't
   // jump (a button that moves just as someone clicks it is a missed click).
-  return <div ref={container} data-testid="turnstile" className="min-h-[65px]" />;
+  return <div ref={container} data-testid="turnstile" className="min-h-[72px]" />;
 }

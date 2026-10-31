@@ -1,7 +1,8 @@
 import 'server-only';
-import { episodeImages, episodes, series, subscriptions } from '@inkline/db';
+import { episodeImages, episodes, series } from '@inkline/db';
 import type { AccessUser } from '@inkline/shared';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
+import { getEntitlement } from '../billing/entitlement';
 import { db } from '../db';
 import type { ReaderInput } from './access';
 
@@ -61,21 +62,8 @@ export async function loadReaderInput(
       .where(and(eq(episodes.seriesId, found.series.id), eq(episodes.status, 'published')))
       .orderBy(asc(episodes.number))
       .limit(SIBLINGS_LIMIT),
-    user
-      ? db
-          .select({
-            status: subscriptions.status,
-            currentPeriodEnd: subscriptions.currentPeriodEnd,
-            graceUntil: subscriptions.graceUntil,
-          })
-          .from(subscriptions)
-          .where(
-            and(
-              eq(subscriptions.userId, user.id),
-              inArray(subscriptions.status, ['active', 'past_due', 'canceled']),
-            ),
-          )
-      : Promise.resolve([]),
+    // Cached for 60 s and cleared whenever the subscription changes (server/billing/entitlement.ts).
+    user ? getEntitlement(user.id) : Promise.resolve([]),
     db
       .select({
         position: episodeImages.position,

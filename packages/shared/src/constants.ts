@@ -16,6 +16,16 @@ export const PLAN_PRICES = {
   yearly: { interval: 'year', priceMinor: 4999, currency: CURRENCY },
 } as const;
 
+/** Billing rules from CLAUDE.md. */
+export const BILLING = {
+  /** After a failed renewal the subscriber keeps access this many days while we retry. */
+  graceDays: 7,
+  /** Days after the first failure on which the charge is tried again. */
+  retryDays: [1, 3, 5],
+  /** Redis: how long a user's subscriptions are cached for access checks. */
+  entitlementCacheSeconds: 60,
+} as const;
+
 /** Roles that must have two-factor authentication on before they can use the site. */
 export const TWO_FACTOR_REQUIRED_ROLES = ['admin'] as const;
 
@@ -81,6 +91,7 @@ export const IMAGE_URL_RATE_LIMIT = { maxAttempts: 600, windowSeconds: 10 * 60 }
 export const COMMENT_MAX_LENGTH = 1000;
 export const COMMENTS_PAGE_SIZE = 20;
 /** Comments a user may post per window. */
+export const CHECKOUT_RATE_LIMIT = { maxAttempts: 10, windowSeconds: 10 * 60 } as const;
 export const COMMENT_RATE_LIMIT = { maxAttempts: 10, windowSeconds: 10 * 60 } as const;
 /** Reports a user may file per window. */
 export const REPORT_RATE_LIMIT = { maxAttempts: 20, windowSeconds: 60 * 60 } as const;
