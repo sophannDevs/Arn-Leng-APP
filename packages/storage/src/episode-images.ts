@@ -1,6 +1,6 @@
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { renditionWidths } from '@inkline/shared';
+import { ANONYMOUS_TOKEN_USER, renditionWidths, signImageToken } from '@inkline/shared';
 import type { StorageClient } from './client';
 import { chunkFileKey } from './keys';
 
@@ -30,7 +30,15 @@ export type SignedEpisodeImages = {
  * Callers must have checked that the user may read the episode BEFORE calling this.
  */
 export interface EpisodeImageUrlSigner {
-  sign(chunks: readonly ChunkRef[]): Promise<SignedEpisodeImages>;
+  /**
+   * `context.userId` is who the addresses are for (null for a signed-out visitor). The presigned
+   * signer ignores it; the edge signer binds its tokens to it. `context.watermark` asks for
+   * per-user watermarked copies (only the web app's watermarking signer honours it).
+   */
+  sign(
+    chunks: readonly ChunkRef[],
+    context?: { userId: string | null; watermark?: boolean },
+  ): Promise<SignedEpisodeImages>;
 }
 
 export type PresignedSignerOptions = {
@@ -86,6 +94,79 @@ export function createPresignedEpisodeImageSigner(
             avif,
             webp,
             src: await presign(chunkFileKey(chunk.keyPrefix, largest, 'webp')),
+          };
+        }),
+      );
+      return { chunks: signed, expiresAt };
+    },
+  };
+}
+
+export type EdgeSignerOptions = {
+  /** Address of the Cloudflare Worker in front of the private bucket, e.g. https://img.inkline.com */
+  baseUrl: string;
+  /** Shared with the Worker (IMAGE_TOKEN_SECRET). Never sent to the browser. */
+  secret: string;
+  ttlSeconds?: number;
+  windowSeconds?: number;
+  now?: () => Date;
+};
+
+/** The episode id is the second path segment of a chunk's key prefix: episodes/{episodeId}/{hash}/{position}. */
+export function episodeIdOfPrefix(keyPrefix: string): string {
+  const id = keyPrefix.split('/')[1];
+  if (keyPrefix.split('/')[0] !== 'episodes' || !id) throw new Error('Not an episode image prefix');
+  return id;
+}
+
+/**
+ * Second version: addresses on the edge Worker, each carrying a short-lived token made for this
+ * user and this episode (see packages/shared image-token). Same input and output as the presigned
+ * signer, so the reader doesn't change. Tokens are made per 5-minute window, like presigned
+ * addresses, so the same user gets the same addresses within a window and browsers can reuse images.
+ */
+export function createEdgeEpisodeImageSigner(options: EdgeSignerOptions): EpisodeImageUrlSigner {
+  const ttl = options.ttlSeconds ?? 10 * 60;
+  const window = options.windowSeconds ?? 5 * 60;
+  const now = options.now ?? (() => new Date());
+  const base = options.baseUrl.replace(/\/+$/, '');
+
+  return {
+    async sign(chunks, context) {
+      const issuedAt = now().getTime();
+      const windowStart = Math.floor(issuedAt / (window * 1000)) * window * 1000;
+      const expiresAt = new Date(windowStart + (ttl + window) * 1000);
+      const userId = context?.userId ?? ANONYMOUS_TOKEN_USER;
+
+      // One token per episode (a request is normally for one episode, but never assume).
+      const tokens = new Map<string, Promise<string>>();
+      const tokenFor = (episodeId: string) => {
+        let token = tokens.get(episodeId);
+        if (!token) {
+          token = signImageToken(options.secret, {
+            episodeId,
+            userId,
+            expiresAt: expiresAt.getTime() / 1000,
+          });
+          tokens.set(episodeId, token);
+        }
+        return token;
+      };
+
+      const signed = await Promise.all(
+        chunks.map(async (chunk): Promise<SignedChunk> => {
+          const token = encodeURIComponent(await tokenFor(episodeIdOfPrefix(chunk.keyPrefix)));
+          const url = (width: number, format: 'avif' | 'webp') =>
+            `${base}/${chunkFileKey(chunk.keyPrefix, width, format)}?t=${token}`;
+          const widths = renditionWidths(chunk.width);
+          const srcset = (format: 'avif' | 'webp') =>
+            widths.map((width) => `${url(width, format)} ${width}w`).join(', ');
+          const largest = widths[widths.length - 1] ?? chunk.width;
+          return {
+            position: chunk.position,
+            avif: srcset('avif'),
+            webp: srcset('webp'),
+            src: url(largest, 'webp'),
           };
         }),
       );

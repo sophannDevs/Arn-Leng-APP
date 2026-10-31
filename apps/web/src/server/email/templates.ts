@@ -57,3 +57,51 @@ export function passwordResetEmail(
     html: layout({ name: user.name, intro, action: t('reset.action'), url, outro }),
   };
 }
+
+const when = (date: Date) =>
+  new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(date) + ' UTC';
+
+/** "Someone signed in from a device we haven't seen." Sent after a sign-in from a new browser. */
+export function newDeviceEmail(
+  user: { name: string; email: string },
+  info: { device: string; ip: string; at: Date; devicesUrl: string },
+): EmailMessage {
+  const intro = t('newDevice.intro', { device: info.device, ip: info.ip, when: when(info.at) });
+  const outro = t('newDevice.outro');
+  return {
+    to: user.email,
+    subject: t('newDevice.subject'),
+    text: plain({ name: user.name, intro, url: info.devicesUrl, outro }),
+    html: layout({
+      name: user.name,
+      intro,
+      action: t('newDevice.action'),
+      url: info.devicesUrl,
+      outro,
+    }),
+  };
+}
+
+export function passwordChangedEmail(
+  user: { name: string; email: string },
+  info: { at: Date; devicesUrl: string },
+): EmailMessage {
+  const intro = t('passwordChanged.intro', { when: when(info.at) });
+  const outro = t('passwordChanged.outro');
+  return {
+    to: user.email,
+    subject: t('passwordChanged.subject'),
+    text: plain({ name: user.name, intro, url: info.devicesUrl, outro }),
+    html: layout({
+      name: user.name,
+      intro,
+      action: t('passwordChanged.action'),
+      url: info.devicesUrl,
+      outro,
+    }),
+  };
+}

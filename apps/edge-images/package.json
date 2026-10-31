@@ -1,0 +1,21 @@
+{
+  "name": "@inkline/edge-images",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@inkline/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@inkline/config": "workspace:*",
+    "@types/node": "24.19.2",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

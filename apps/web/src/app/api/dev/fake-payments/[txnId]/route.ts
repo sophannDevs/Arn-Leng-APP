@@ -5,6 +5,7 @@ import { env } from '@/env';
 import { apiError, authorizeApi } from '@/server/auth/api';
 import { fakeProviderEnabled, getFakeProvider } from '@/server/billing/provider';
 import { db } from '@/server/db';
+import { limitUser } from '@/server/engagement/limits';
 
 async function deliver(txnId: string) {
   const callback = getFakeProvider().callbackFor(txnId);
@@ -31,6 +32,10 @@ export async function POST(request: Request, context: { params: Promise<{ txnId:
   if (!fakeProviderEnabled()) return apiError(404, 'not_found');
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const { txnId } = await context.params;
   const input = fakePayInputSchema.safeParse(await request.json().catch(() => null));
   if (!input.success || !/^fake_txn_[0-9a-f-]{36}$/.test(txnId))

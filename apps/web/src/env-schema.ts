@@ -20,6 +20,14 @@ export const webEnvSchema = z
     // Address the public bucket is served from (the CDN in production). Defaults to the S3 endpoint.
     S3_PUBLIC_BASE_URL: optional(z.url()),
 
+    // Image edge (a Cloudflare Worker in front of the private bucket, apps/edge-images). Set both to
+    // switch episode image addresses from presigned bucket URLs to signed-token URLs on the edge.
+    IMAGE_EDGE_URL: optional(z.url()),
+    IMAGE_EDGE_SECRET: optional(z.string().min(32, 'must be at least 32 characters')),
+
+    // Invisible per-user watermark on paid episodes. OFF by default; see "Watermarking" in the README.
+    WATERMARK_ENABLED: z.enum(['true', 'false']).default('false'),
+
     // Auth. The secret signs cookies and encrypts 2FA secrets: rotating it signs everyone out and
     // breaks 2FA. Generate one with `openssl rand -base64 32`.
     BETTER_AUTH_SECRET: z.string().min(32, 'must be at least 32 characters'),
@@ -54,6 +62,7 @@ export const webEnvSchema = z
       }
     };
     pair('TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY');
+    pair('IMAGE_EDGE_URL', 'IMAGE_EDGE_SECRET');
     pair('GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET');
     pair('FACEBOOK_CLIENT_ID', 'FACEBOOK_CLIENT_SECRET');
     if (env.NODE_ENV === 'production') {

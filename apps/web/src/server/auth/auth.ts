@@ -1,6 +1,7 @@
 import 'server-only';
-import { accounts, sessions, twoFactors, users, verifications } from '@inkline/db';
+import { accounts, knownDevices, sessions, twoFactors, users, verifications } from '@inkline/db';
 import {
+  API_IP_RATE_LIMIT,
   DEFAULT_LOCALE,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
@@ -12,16 +13,35 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import { captcha, twoFactor } from 'better-auth/plugins';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { env } from '@/env';
 import { db } from '../db';
 import { getEmailSender } from '../email';
-import { passwordResetEmail, verificationEmail } from '../email/templates';
+import { describeDevice, deviceFingerprint } from '@/lib/device';
+import {
+  newDeviceEmail,
+  passwordChangedEmail,
+  passwordResetEmail,
+  verificationEmail,
+} from '../email/templates';
 import { redis } from '../redis';
-import { AuthRateLimiter, RateLimitedError, RedisCounterStore, clientIp } from './rate-limit';
+import {
+  AuthRateLimiter,
+  KeyedRateLimiter,
+  RateLimitedError,
+  RedisCounterStore,
+  clientIp,
+} from './rate-limit';
 
 const isProduction = env.NODE_ENV === 'production';
 const limiter = new AuthRateLimiter(new RedisCounterStore(redis));
+// Every auth endpoint (sessions, password change, 2FA...) has a ceiling per client address too.
+const anyAuthCall = new KeyedRateLimiter(
+  new RedisCounterStore(redis),
+  'auth-any-ip',
+  API_IP_RATE_LIMIT,
+);
 
 const emailBody = z.object({ email: z.string().max(254) });
 
@@ -35,6 +55,49 @@ function sendInBackground(message: ReturnType<typeof verificationEmail>) {
         error instanceof Error ? error.message : 'unknown error',
       );
     });
+}
+
+const devicesUrl = () => `${env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '')}/account/sessions`;
+
+/**
+ * After every new session: remember the browser, and email the owner when it is one they have not
+ * signed in from before. The very first device of an account is not "new" (nothing to compare with).
+ */
+async function noticeNewDevice(session: {
+  userId: string;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+}) {
+  try {
+    const fingerprint = await deviceFingerprint(session.userAgent);
+    const [{ known } = { known: 0 }] = await db
+      .select({ known: sql<number>`count(*)`.mapWith(Number) })
+      .from(knownDevices)
+      .where(eq(knownDevices.userId, session.userId));
+    const added = await db
+      .insert(knownDevices)
+      .values({ userId: session.userId, fingerprint })
+      .onConflictDoNothing()
+      .returning({ fingerprint: knownDevices.fingerprint });
+    if (known === 0 || added.length === 0) return;
+    const [user] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, session.userId))
+      .limit(1);
+    if (!user) return;
+    sendInBackground(
+      newDeviceEmail(user, {
+        device: describeDevice(session.userAgent),
+        ip: session.ipAddress ?? 'unknown',
+        at: new Date(),
+        devicesUrl: devicesUrl(),
+      }),
+    );
+  } catch (error) {
+    // Never let a notification problem stop someone signing in.
+    console.error('New-device check failed:', error instanceof Error ? error.message : 'unknown');
+  }
 }
 
 export const auth = betterAuth({
@@ -71,6 +134,10 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       sendInBackground(passwordResetEmail(user, url));
     },
+    // After a reset through the emailed link: tell the owner, in case it wasn't them.
+    onPasswordReset: async ({ user }) => {
+      sendInBackground(passwordChangedEmail(user, { at: new Date(), devicesUrl: devicesUrl() }));
+    },
   },
 
   emailVerification: {
@@ -105,11 +172,16 @@ export const auth = betterAuth({
     database: { generateId: 'uuid' },
   },
 
+  databaseHooks: {
+    session: { create: { after: async (session) => void (await noticeNewDevice(session)) } },
+  },
+
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       const ip = clientIp(ctx.headers ?? ctx.request?.headers);
       const email = emailBody.safeParse(ctx.body).data?.email ?? '';
       try {
+        await anyAuthCall.consume(ip);
         switch (ctx.path) {
           case '/sign-in/email':
             await limiter.assertCanSignIn(ip, email);
@@ -145,6 +217,15 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === '/change-password' && !(ctx.context.returned instanceof APIError)) {
+        const session = await getSessionFromCtx(ctx);
+        if (session) {
+          sendInBackground(
+            passwordChangedEmail(session.user, { at: new Date(), devicesUrl: devicesUrl() }),
+          );
+        }
+        return;
+      }
       if (ctx.path !== '/sign-in/email') return;
       const ip = clientIp(ctx.headers ?? ctx.request?.headers);
       const email = emailBody.safeParse(ctx.body).data?.email ?? '';

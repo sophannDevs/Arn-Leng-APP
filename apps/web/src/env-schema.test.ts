@@ -53,6 +53,30 @@ describe('parseWebEnv', () => {
     expect(() => parseWebEnv({ ...valid, GOOGLE_CLIENT_ID: 'id' })).toThrow(/GOOGLE_CLIENT_SECRET/);
   });
 
+  it('requires the image edge address and secret together, and a long secret', () => {
+    expect(() => parseWebEnv({ ...valid, IMAGE_EDGE_URL: 'https://img.example.com' })).toThrow(
+      /IMAGE_EDGE_SECRET/,
+    );
+    expect(() => parseWebEnv({ ...valid, IMAGE_EDGE_SECRET: 'x'.repeat(40) })).toThrow(
+      /IMAGE_EDGE_URL/,
+    );
+    expect(() =>
+      parseWebEnv({
+        ...valid,
+        IMAGE_EDGE_URL: 'https://img.example.com',
+        IMAGE_EDGE_SECRET: 'short',
+      }),
+    ).toThrow(/IMAGE_EDGE_SECRET/);
+    expect(
+      parseWebEnv({
+        ...valid,
+        IMAGE_EDGE_URL: 'https://img.example.com',
+        IMAGE_EDGE_SECRET: 'x'.repeat(40),
+      }).IMAGE_EDGE_URL,
+    ).toBe('https://img.example.com');
+    expect(parseWebEnv(valid).IMAGE_EDGE_URL).toBeUndefined();
+  });
+
   describe('in production', () => {
     it('accepts a complete production environment', () => {
       expect(parseWebEnv(production).RESEND_API_KEY).toBe('re_123');

@@ -1,4 +1,5 @@
 import {
+  accountFlags,
   auditLogs,
   createDb,
   creatorProfiles,
@@ -396,4 +397,8 @@ export async function endSubscriptionPeriod(userId: string, status?: 'expired') 
       .where(eq(subscriptions.userId, userId)),
   );
   await clearEntitlementCache(userId);
+}
+
+export function getFlags(userId: string) {
+  return withDb((db) => db.select().from(accountFlags).where(eq(accountFlags.userId, userId)));
 }

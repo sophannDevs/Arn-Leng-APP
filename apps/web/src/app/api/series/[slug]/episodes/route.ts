@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { apiError } from '@/server/auth/api';
 import { getEpisodesPage, getSeriesBySlug } from '@/server/public/queries';
 import { toEpisodeRow } from '@/server/public/view';
+import { limitIp } from '@/server/engagement/limits';
 
 const querySchema = z.object({
   order: z.enum(['asc', 'desc']).default('desc'),
@@ -10,6 +11,10 @@ const querySchema = z.object({
 
 /** GET /api/series/{slug}/episodes?order=desc&after=12: the next page of a series' episode list. */
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
+  {
+    const limited = await limitIp(request);
+    if (limited) return limited;
+  }
   const { slug } = await context.params;
   const query = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
   if (!query.success) return apiError(400, 'invalid_request');

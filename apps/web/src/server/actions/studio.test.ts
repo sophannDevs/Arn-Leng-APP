@@ -71,6 +71,8 @@ vi.mock('@inkline/storage', async (importOriginal) => ({
   headObject: async () => (storageCalls.push('head'), null),
   deleteObjects: async () => void storageCalls.push('delete'),
 }));
+// Rate limits need Redis; the permission rules are what these tests are about.
+vi.mock('../engagement/limits', () => ({ actionAllowed: async () => true }));
 vi.mock('../queue', () => ({
   enqueueProcessEpisode: (...a: unknown[]) => enqueue(...a),
   enqueueProcessImage: (...a: unknown[]) => enqueue(...a),

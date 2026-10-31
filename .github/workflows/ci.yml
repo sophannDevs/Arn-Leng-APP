@@ -29,3 +29,29 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+
+  security:
+    name: Secret scan and dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # gitleaks looks through the whole history, not just the latest commit
+
+      # Fails the build if a key, token or password was committed. Rules and allowances: .gitleaks.toml
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # High and critical advisories fail the build (moderate ones are listed but do not).
+      - run: pnpm audit --audit-level high

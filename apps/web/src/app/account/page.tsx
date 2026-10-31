@@ -62,6 +62,12 @@ export default async function AccountPage() {
         />
       </Panel>
 
+      <Panel title={t('sessions.title')} description={t('sessions.description')}>
+        <Link href="/account/sessions" className={linkClass}>
+          {t('sessions.manage')}
+        </Link>
+      </Panel>
+
       <Panel title={tSub('title')}>
         <p className="m-0 text-sm" data-testid="account-subscription">
           {subscription?.entitled

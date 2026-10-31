@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { env } from '@/env';
 import { apiError } from '@/server/auth/api';
+import { limitIp } from '@/server/engagement/limits';
 
 const bodySchema = z.object({ seriesSlugs: z.array(slugSchema).max(100) });
 
@@ -18,6 +19,8 @@ const matchesSecret = (header: string | null) => {
  * home and series pages show them. Not for browsers: it needs the shared INTERNAL_API_SECRET.
  */
 export async function POST(request: Request) {
+  const limited = await limitIp(request);
+  if (limited) return limited;
   if (!matchesSecret(request.headers.get('authorization'))) return apiError(401, 'unauthenticated');
 
   const body = bodySchema.safeParse(await request.json().catch(() => null));

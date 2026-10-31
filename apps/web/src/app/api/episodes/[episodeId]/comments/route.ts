@@ -6,6 +6,8 @@ import { addComment, listComments } from '@/server/engagement/comments';
 import { commentLimiter } from '@/server/engagement/limits';
 import { decideAccess } from '@/server/reader/access';
 import { loadReaderInput } from '@/server/reader/load';
+import { limitUser } from '@/server/engagement/limits';
+import { limitIp } from '@/server/engagement/limits';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
 
@@ -24,6 +26,10 @@ async function readableEpisode(episodeId: string) {
 }
 
 export async function GET(request: Request, context: { params: Promise<{ episodeId: string }> }) {
+  {
+    const limited = await limitIp(request);
+    if (limited) return limited;
+  }
   const id = idSchema.safeParse((await context.params).episodeId);
   if (!id.success) return apiError(400, 'invalid_request');
   const found = await readableEpisode(id.data);
@@ -42,6 +48,10 @@ export async function GET(request: Request, context: { params: Promise<{ episode
 export async function POST(request: Request, context: { params: Promise<{ episodeId: string }> }) {
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const id = idSchema.safeParse((await context.params).episodeId);
   const input = commentInputSchema.safeParse(await request.json().catch(() => null));
   if (!id.success || !input.success) return apiError(400, 'invalid_request');

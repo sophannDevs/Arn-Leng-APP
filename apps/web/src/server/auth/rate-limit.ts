@@ -1,6 +1,7 @@
 import {
   AUTH_IP_RATE_LIMIT,
   AUTH_RATE_LIMIT,
+  IMAGE_URL_HOURLY_LIMIT,
   IMAGE_URL_RATE_LIMIT,
   UPLOAD_URL_RATE_LIMIT,
 } from '@inkline/shared';
@@ -132,6 +133,9 @@ export class ImageUrlRateLimiter {
     const key = who.userId ? `rl:image-url:user:${who.userId}` : `rl:image-url:ip:${who.ip}`;
     const count = await this.store.increment(key, IMAGE_URL_RATE_LIMIT.windowSeconds);
     if (count > IMAGE_URL_RATE_LIMIT.maxAttempts) throw new RateLimitedError();
+    // A second, longer window: a script that stays under the burst limit still hits this one.
+    const hourly = await this.store.increment(`${key}:hour`, IMAGE_URL_HOURLY_LIMIT.windowSeconds);
+    if (hourly > IMAGE_URL_HOURLY_LIMIT.maxAttempts) throw new RateLimitedError();
   }
 }
 

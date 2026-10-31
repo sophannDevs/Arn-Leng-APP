@@ -1,0 +1,21 @@
+# Secret scanning rules (gitleaks). The default rules stay on; this only lists what is known to be safe.
+title = "Inkline gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Development placeholders and test fixtures that are not real secrets"
+paths = [
+  '''\.env\.example$''',
+  '''pnpm-lock\.yaml$''',
+  '''packages/db/drizzle/meta/.*''',
+]
+regexes = [
+  # The documented development passwords/secrets used by the seed script, tests and .env.example.
+  '''inkline-dev-password''',
+  '''dev-only-[a-z-]*secret[a-z0-9-]*''',
+  '''XXXX\.DUMMY\.TOKEN\.XXXX''',
+  # Cloudflare's published Turnstile test keys.
+  '''1x0{20}AA|2x0{20}AA|3x0{20}FF|1x00000000000000000000AA''',
+]

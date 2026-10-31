@@ -1,5 +1,5 @@
-import { type APIRequestContext, type Page, expect } from '@playwright/test';
-import { newTestEmail } from './db';
+import { type APIRequest, type APIRequestContext, type Page, expect } from '@playwright/test';
+import { getUserId, makeAdmin, makeCreator, markTwoFactorEnabled, newTestEmail } from './db';
 import { waitForEmailLink } from './mail';
 
 export const PASSWORD = 'correct-horse-battery';
@@ -37,4 +37,28 @@ export async function signIn(page: Page, email: string) {
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
+}
+
+export type ApiUser = { request: APIRequestContext; email: string; id: string };
+
+/** A signed-in API client with its own cookies and client address: a person, without a browser. */
+export async function newApiUser(
+  playwright: { request: APIRequest },
+  baseURL: string,
+  role: 'reader' | 'creator' | 'admin' = 'reader',
+): Promise<ApiUser> {
+  const request = await playwright.request.newContext({ baseURL });
+  const { email, headers } = await createVerifiedUser(request, uniqueIp(), baseURL);
+  if (role === 'creator') await makeCreator(email);
+  if (role === 'admin') await makeAdmin(email);
+  const signedIn = await request.post('/api/auth/sign-in/email', {
+    headers: { ...headers, 'x-captcha-response': DUMMY_CAPTCHA },
+    data: { email, password: PASSWORD },
+  });
+  expect(signedIn.ok()).toBe(true);
+  // Admins are refused everywhere until 2FA is on; set the flag after sign-in (a real one would ask for a code).
+  if (role === 'admin') await markTwoFactorEnabled(email);
+  const id = await getUserId(email);
+  if (!id) throw new Error('user missing');
+  return { request, email, id };
 }

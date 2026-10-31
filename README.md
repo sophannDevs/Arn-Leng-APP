@@ -103,6 +103,18 @@ Creators and admins manage their work at `/studio`: create and edit a series (ti
 - **Not in this phase:** real payments, saved card tokens, renewals and retries, the daily reconciliation job and refunds (Phase 8); the full admin dashboard (Phase 10).
 - **Trying it:** sign in, open a locked episode, press Subscribe, pick a plan, then choose an outcome on the test payment page ("Pay now", "Pay now, confirmation arrives late" or "Decline").
 
+## Security
+
+The full description and the audit of every route and server action is in [docs/security.md](docs/security.md). In short:
+
+- **Headers and CSP:** `src/proxy.ts` gives pages a nonce-based Content-Security-Policy (see the doc for why the few cached public pages are the exception), plus HSTS, `nosniff`, `Referrer-Policy`, `frame-ancestors 'none'` and more. API routes refuse POST/PUT/PATCH/DELETE from another website.
+- **Rate limits** on every API route and server action, and an hourly cap on image addresses. An account given more than 20 different episodes in 5 minutes is flagged at `/admin/flags` (nothing is blocked automatically).
+- **Image access:** presigned bucket URLs by default. For production, deploy the Cloudflare Worker in `apps/edge-images` (`npx wrangler deploy`, with the R2 binding in `wrangler.toml`) and set `IMAGE_EDGE_URL` and `IMAGE_EDGE_SECRET` (the same value as the Worker's `IMAGE_TOKEN_SECRET`). The reader doesn't change. Tokens name the episode, user and expiry; the Worker rejects expired or tampered ones.
+- **Watermark (optional, off):** `WATERMARK_ENABLED=true` serves subscribers a lossless copy of paid chunks with their user id hidden in it. **Watermarked images are made per person, so they cannot be shared through the edge cache or a CDN**, and they only survive lossless copies. See the doc.
+- **Account security:** `/account/sessions` lists devices with "log out everywhere"; emails go out on a new-device sign-in and on a password change.
+- **CI:** gitleaks (secret scan) and `pnpm audit --audit-level high` run on every push and pull request; Dependabot opens weekly update PRs. They run on GitHub, not locally.
+- **Tests:** `e2e/cross-user.spec.ts` proves user A cannot read or change user B's account, progress, subscription, payments or drafts; `e2e/security-headers.spec.ts` checks the headers and that no CSP violation happens on the main pages; the Worker's tests cover expired and tampered tokens.
+
 ## Image processing
 
 When a creator submits an episode, the web app sets it to `processing` and queues a `process-episode` job. The worker (`apps/worker`) then:
@@ -184,6 +196,8 @@ The build follows the phase plan in the project's build prompt. Each phase ends 
 - [x] Phase 5: public site and reader
 - [x] Phase 6: engagement, rankings and search
 - [x] Phase 7: subscriptions and access control (fake payment provider)
-- [ ] Phases 8–11: PayWay, security, admin, deployment
+- [ ] Phase 8: payments with ABA PayWay (**not built**: the PayWay docs for saved cards, charging a token, refunds and the transaction list could not be read, and there are no sandbox credentials yet)
+- [x] Phase 9: security hardening and anti-piracy
+- [ ] Phases 10–11: admin, deployment
 
 # Arn-Leng-APP

@@ -1,6 +1,7 @@
 import { idSchema } from '@inkline/shared';
 import { apiError, authorizeApi } from '@/server/auth/api';
 import { deleteComment } from '@/server/engagement/comments';
+import { limitUser } from '@/server/engagement/limits';
 
 /** DELETE: you can delete your own comment. Anyone else gets 403. */
 export async function DELETE(
@@ -9,6 +10,10 @@ export async function DELETE(
 ) {
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const id = idSchema.safeParse((await context.params).commentId);
   if (!id.success) return apiError(400, 'invalid_request');
   const result = await deleteComment(id.data, { id: auth.user.id, role: auth.user.role });

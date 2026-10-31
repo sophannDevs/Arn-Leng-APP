@@ -69,7 +69,7 @@ export type ReaderData =
 export type ReaderDeps = {
   signer: EpisodeImageUrlSigner;
   /** Called right before addresses are issued; throws when the reader is asking too often. */
-  consumeQuota: () => Promise<void>;
+  consumeQuota: (episodeId: string) => Promise<void>;
 };
 
 const accessFor = (
@@ -125,6 +125,14 @@ function shellOf(input: ReaderInput): Shell {
  * A locked episode returns just the lock screen's data. The signer is never called for it, so no
  * address, no storage key, not even the image count can reach a user without access.
  */
+/**
+ * Who the addresses are for, and whether they should carry a watermark: only a SUBSCRIBER reading
+ * paid content is marked (free episodes are public, staff read their own series).
+ */
+function signContext(input: ReaderInput, access: { allowed: true; reason: string }) {
+  return { userId: input.user?.id ?? null, watermark: access.reason === 'subscription' };
+}
+
 export async function buildReader(input: ReaderInput, deps: ReaderDeps): Promise<ReaderData> {
   const access = decideAccess(input);
   if (!access.allowed) {
@@ -139,12 +147,12 @@ export async function buildReader(input: ReaderInput, deps: ReaderDeps): Promise
   }
 
   try {
-    await deps.consumeQuota();
+    await deps.consumeQuota(input.episode.id);
   } catch {
     return { state: 'rate_limited' };
   }
 
-  const signed = await deps.signer.sign(input.chunks);
+  const signed = await deps.signer.sign(input.chunks, signContext(input, access));
   const byPosition = new Map(signed.chunks.map((chunk) => [chunk.position, chunk]));
   const chunks = input.chunks.flatMap((stored): ReaderChunk[] => {
     const urls = byPosition.get(stored.position);
@@ -175,15 +183,16 @@ export async function signRequestedChunks(
   | 'denied'
   | 'rate_limited'
 > {
-  if (!decideAccess(input).allowed) return 'denied';
+  const access = decideAccess(input);
+  if (!access.allowed) return 'denied';
   try {
-    await deps.consumeQuota();
+    await deps.consumeQuota(input.episode.id);
   } catch {
     return 'rate_limited';
   }
   const wanted = new Set(positions);
   const requested = input.chunks.filter((chunk) => wanted.has(chunk.position));
-  const signed = await deps.signer.sign(requested);
+  const signed = await deps.signer.sign(requested, signContext(input, access));
   const sizes = new Map(requested.map((chunk) => [chunk.position, chunk]));
   return {
     expiresAt: signed.expiresAt,

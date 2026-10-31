@@ -1,0 +1,11 @@
+# Cloudflare Worker in front of the PRIVATE episode image bucket. Deploy with Cloudflare's wrangler
+# (not a dependency of this repo): `npx wrangler deploy` from this folder, then
+#   npx wrangler secret put IMAGE_TOKEN_SECRET     (same value as IMAGE_EDGE_SECRET in the web app)
+name = "inkline-edge-images"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# The private bucket, as an R2 binding: the Worker reads it directly, nothing about it is public.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "inkline-private"

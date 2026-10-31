@@ -1,5 +1,6 @@
 import { FAKE_SIGNATURE_HEADER } from '@inkline/payments';
 import { apiError } from '@/server/auth/api';
+import { limitIp } from '@/server/engagement/limits';
 import { processProviderCallback } from '@/server/billing/callbacks';
 import { fakeProviderEnabled, getFakeProvider } from '@/server/billing/provider';
 
@@ -10,6 +11,8 @@ import { fakeProviderEnabled, getFakeProvider } from '@/server/billing/provider'
  */
 export async function POST(request: Request) {
   if (!fakeProviderEnabled()) return apiError(404, 'not_found');
+  const limited = await limitIp(request);
+  if (limited) return limited;
   const rawBody = await request.text();
   const result = await processProviderCallback(getFakeProvider(), {
     rawBody,

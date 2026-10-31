@@ -1,6 +1,7 @@
 import {
   AUTH_IP_RATE_LIMIT,
   AUTH_RATE_LIMIT,
+  IMAGE_URL_HOURLY_LIMIT,
   IMAGE_URL_RATE_LIMIT,
   UPLOAD_URL_RATE_LIMIT,
 } from '@inkline/shared';
@@ -202,6 +203,35 @@ describe('episode image address rate limit', () => {
     );
     store.now = IMAGE_URL_RATE_LIMIT.windowSeconds * 1000;
     await expect(limiter.consume({ userId: null, ip: '198.51.100.1' })).resolves.toBeUndefined();
+  });
+});
+
+describe('episode image address hourly cap', () => {
+  it('stops a script that stays under the burst limit but keeps going for an hour', async () => {
+    const { store } = setup();
+    const limiter = new ImageUrlRateLimiter(store);
+    const user = { userId: 'scraper', ip: '203.0.113.9' };
+    let used = 0;
+    // 600 every ten minutes never trips the 10 minute limit...
+    for (let window = 0; window < 3; window++) {
+      store.now = window * IMAGE_URL_RATE_LIMIT.windowSeconds * 1000;
+      for (
+        let i = 0;
+        i < IMAGE_URL_RATE_LIMIT.maxAttempts && used < IMAGE_URL_HOURLY_LIMIT.maxAttempts;
+        i++
+      ) {
+        await limiter.consume(user);
+        used++;
+      }
+    }
+    expect(used).toBe(IMAGE_URL_HOURLY_LIMIT.maxAttempts);
+    // ...but the hour's total is capped.
+    await expect(limiter.consume(user)).rejects.toBeInstanceOf(RateLimitedError);
+    // An ordinary reader (a handful of episodes) is nowhere near it.
+    await expect(limiter.consume({ userId: 'reader', ip: '203.0.113.9' })).resolves.toBeUndefined();
+    // After the hour, the scraper may ask again.
+    store.now = IMAGE_URL_HOURLY_LIMIT.windowSeconds * 1000;
+    await expect(limiter.consume(user)).resolves.toBeUndefined();
   });
 });
 

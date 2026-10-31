@@ -7,6 +7,7 @@ import { recordHistory } from '@/server/engagement/library';
 import { recordView } from '@/server/engagement/views';
 import { decideAccess } from '@/server/reader/access';
 import { loadReaderInput } from '@/server/reader/load';
+import { limitIp } from '@/server/engagement/limits';
 
 const body = z.object({ episodeId: idSchema });
 const DEVICE_COOKIE = 'inkline_device';
@@ -17,6 +18,10 @@ const DEVICE_COOKIE = 'inkline_device';
  * Only readable, published episodes count, and the creator's own reading doesn't.
  */
 export async function POST(request: Request) {
+  {
+    const limited = await limitIp(request);
+    if (limited) return limited;
+  }
   const input = body.safeParse(await request.json().catch(() => null));
   if (!input.success) return apiError(400, 'invalid_request');
 

@@ -73,6 +73,18 @@
       "intro": "We got a request to reset your Inkline password. Use the button below to choose a new one.",
       "action": "Reset password",
       "outro": "This link works for 1 hour. If you didn't ask for this, you can ignore this email and your password stays the same."
+    },
+    "newDevice": {
+      "subject": "New sign-in to your Inkline account",
+      "intro": "Your account was just signed in to from a new device: {device} (network address {ip}) on {when}.",
+      "action": "Review your devices",
+      "outro": "If this was you, there's nothing to do. If it wasn't, change your password and log out everywhere from the page above."
+    },
+    "passwordChanged": {
+      "subject": "Your Inkline password was changed",
+      "intro": "The password for your Inkline account was changed on {when}.",
+      "action": "Review your devices",
+      "outro": "If you didn't do this, reset your password straight away and log out everywhere from the page above."
     }
   },
   "auth": {
@@ -225,6 +237,11 @@
       "active": "Premium until {date}.",
       "manage": "Manage subscription",
       "plans": "See plans"
+    },
+    "sessions": {
+      "title": "Devices",
+      "description": "See where you're logged in and log other devices out.",
+      "manage": "Manage devices"
     }
   },
   "creator": {
@@ -454,6 +471,17 @@
         "invalid_request": "Check the email and length.",
         "failed": "That didn't work. Try again."
       }
+    },
+    "flags": {
+      "link": "Accounts flagged for review",
+      "title": "Accounts flagged for review",
+      "lead": "These accounts were given the pages of far more episodes than a person reads in a few minutes. It is a prompt to look, not proof, and nothing was blocked.",
+      "empty": "Nothing to review.",
+      "reasons": {
+        "rapid_reading": "Read {episodes} different episodes within {minutes} minutes"
+      },
+      "markReviewed": "Mark reviewed",
+      "back": "Back to admin"
     }
   },
   "forbidden": {
@@ -915,5 +943,22 @@
         "refunded": "Refunded"
       }
     }
+  },
+  "sessions": {
+    "title": "Where you're logged in",
+    "lead": "We email you when a new device logs in.",
+    "back": "Back to account",
+    "current": "Current",
+    "logout": "Log out",
+    "logoutOthers": "Log out everywhere else",
+    "logoutAll": "Log out everywhere",
+    "confirmOthers": "Every other device will need to log in again.",
+    "confirmAll": "Every device, including this one, will need to log in again.",
+    "working": "Working…",
+    "failed": "That didn't work. Refresh and try again.",
+    "empty": "No devices found.",
+    "where": "{ip} · last active {when}",
+    "unknownIp": "Unknown location",
+    "doneOthers": "Other devices logged out."
   }
 }

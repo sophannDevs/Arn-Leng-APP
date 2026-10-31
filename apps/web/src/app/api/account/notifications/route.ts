@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { apiError, authorizeApi } from '@/server/auth/api';
 import { db } from '@/server/db';
+import { limitUser } from '@/server/engagement/limits';
 
 const body = z.object({ emailNotifications: z.boolean() });
 
@@ -10,6 +11,10 @@ const body = z.object({ emailNotifications: z.boolean() });
 export async function PUT(request: Request) {
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const input = body.safeParse(await request.json().catch(() => null));
   if (!input.success) return apiError(400, 'invalid_request');
   await db

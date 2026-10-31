@@ -1,0 +1,23 @@
+# Dependabot: weekly pull requests for outdated or vulnerable dependencies.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for routine minor and patch updates, so they are easy to review together.
+      minor-and-patch:
+        update-types: [minor, patch]
+    # Pinned on purpose: major upgrades of the framework and the ORM are done deliberately, by hand.
+    ignore:
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: drizzle-orm
+        update-types: [version-update:semver-major]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createStorageClient, presignUpload, publicObjectUrl } from './client';
-import { createPresignedEpisodeImageSigner } from './episode-images';
+import { ANONYMOUS_TOKEN_USER, verifyImageToken } from '@inkline/shared';
+import { createEdgeEpisodeImageSigner, createPresignedEpisodeImageSigner } from './episode-images';
 import {
   chunkFileKey,
   chunkKeyPrefix,
@@ -171,5 +172,69 @@ describe('createPresignedEpisodeImageSigner', () => {
   it('signs nothing for an empty list', async () => {
     const result = await signer(at('2026-06-15T12:00:00Z')).sign([]);
     expect(result.chunks).toEqual([]);
+  });
+});
+
+describe('createEdgeEpisodeImageSigner', () => {
+  const secret = 'a-secret-that-is-at-least-32-characters-long';
+  const USER = '9f8e7d6c-5b4a-4392-8170-6f5e4d3c2b1a';
+  const chunks = [{ position: 1, keyPrefix: `episodes/${EPISODE}/abc123/1`, width: 800 }];
+  const signer = createEdgeEpisodeImageSigner({
+    baseUrl: 'https://img.example.com/',
+    secret,
+    now: () => new Date('2026-06-15T12:03:00.000Z'),
+  });
+
+  it('gives addresses on the edge, each with a token bound to this episode and this user', async () => {
+    const { chunks: signed, expiresAt } = await signer.sign(chunks, { userId: USER });
+    const first = new URL(signed[0]?.src ?? '');
+    expect(first.origin).toBe('https://img.example.com');
+    expect(first.pathname).toBe(`/episodes/${EPISODE}/abc123/1-800.webp`);
+    const claims = await verifyImageToken(
+      secret,
+      first.searchParams.get('t'),
+      expiresAt.getTime() / 1000 - 1,
+    );
+    expect(claims).toMatchObject({ ok: true, claims: { episodeId: EPISODE, userId: USER } });
+    // The srcset covers every rendition, in both formats.
+    expect(signed[0]?.avif).toMatch(/1-480\.avif\?t=.+ 480w, .+1-800\.avif\?t=.+ 800w/);
+    expect(signed[0]?.webp).toContain('1-480.webp');
+  });
+
+  it('tokens last at least ten minutes from any moment in the 5-minute window, and are the same within it', async () => {
+    const early = createEdgeEpisodeImageSigner({
+      baseUrl: 'https://img.example.com',
+      secret,
+      now: () => new Date('2026-06-15T12:00:01.000Z'),
+    });
+    const late = createEdgeEpisodeImageSigner({
+      baseUrl: 'https://img.example.com',
+      secret,
+      now: () => new Date('2026-06-15T12:04:59.000Z'),
+    });
+    const a = await early.sign(chunks, { userId: USER });
+    const b = await late.sign(chunks, { userId: USER });
+    expect(b.chunks[0]?.src).toBe(a.chunks[0]?.src); // browsers can reuse the image
+    expect(a.expiresAt.toISOString()).toBe('2026-06-15T12:15:00.000Z');
+    expect(
+      a.expiresAt.getTime() - new Date('2026-06-15T12:04:59.000Z').getTime(),
+    ).toBeGreaterThanOrEqual(10 * 60 * 1000);
+  });
+
+  it('a signed-out visitor gets an anonymous token, and another user gets different addresses', async () => {
+    const anonymous = await signer.sign(chunks);
+    expect(new URL(anonymous.chunks[0]?.src ?? '').searchParams.get('t')).toContain(
+      `.${ANONYMOUS_TOKEN_USER}.`,
+    );
+    const other = await signer.sign(chunks, { userId: '1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8' });
+    expect(other.chunks[0]?.src).not.toBe(
+      (await signer.sign(chunks, { userId: USER })).chunks[0]?.src,
+    );
+  });
+
+  it('refuses a chunk that is not an episode image', async () => {
+    await expect(
+      signer.sign([{ position: 1, keyPrefix: 'covers/x/1', width: 800 }]),
+    ).rejects.toThrow();
   });
 });

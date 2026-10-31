@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { apiError, authorizeApi } from '@/server/auth/api';
 import { db } from '@/server/db';
+import { limitUser } from '@/server/engagement/limits';
 
 const saveSchema = z.object({
   episodeId: idSchema,
@@ -15,6 +16,10 @@ const saveSchema = z.object({
 export async function POST(request: Request) {
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const body = saveSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return apiError(400, 'invalid_request');
 
@@ -56,6 +61,10 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const seriesId = idSchema.safeParse(new URL(request.url).searchParams.get('seriesId'));
   if (!seriesId.success) return apiError(400, 'invalid_request');
 

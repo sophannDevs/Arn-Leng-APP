@@ -3,11 +3,17 @@ import { z } from 'zod';
 import { apiError, authorizeApi } from '@/server/auth/api';
 import { getCurrentUser } from '@/server/auth/session';
 import { getLikeState, setLike } from '@/server/engagement/follows-likes';
+import { limitUser } from '@/server/engagement/limits';
+import { limitIp } from '@/server/engagement/limits';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
 const body = z.object({ liked: z.boolean() });
 
-export async function GET(_request: Request, context: { params: Promise<{ episodeId: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ episodeId: string }> }) {
+  {
+    const limited = await limitIp(request);
+    if (limited) return limited;
+  }
   const id = idSchema.safeParse((await context.params).episodeId);
   if (!id.success) return apiError(400, 'invalid_request');
   const user = await getCurrentUser();
@@ -17,6 +23,10 @@ export async function GET(_request: Request, context: { params: Promise<{ episod
 export async function PUT(request: Request, context: { params: Promise<{ episodeId: string }> }) {
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const id = idSchema.safeParse((await context.params).episodeId);
   const input = body.safeParse(await request.json().catch(() => null));
   if (!id.success || !input.success) return apiError(400, 'invalid_request');

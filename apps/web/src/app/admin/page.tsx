@@ -18,6 +18,9 @@ export default async function AdminPage() {
       <Link href="/admin/subscriptions" className={linkClass}>
         {t('subscriptions.link')}
       </Link>
+      <Link href="/admin/flags" className={linkClass}>
+        {t('flags.link')}
+      </Link>
       <Link href="/account" className={linkClass}>
         {t('account')}
       </Link>

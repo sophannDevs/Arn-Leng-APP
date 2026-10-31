@@ -18,6 +18,28 @@ importers:
         specifier: 2.11.10
         version: 2.11.10
 
+  apps/edge-images:
+    dependencies:
+      '@inkline/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      '@inkline/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
+      eslint:
+        specifier: 9.39.5
+        version: 9.39.5(jiti@2.7.0)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
   apps/web:
     dependencies:
       '@inkline/db':
@@ -59,6 +81,9 @@ importers:
       server-only:
         specifier: 0.0.1
         version: 0.0.1
+      sharp:
+        specifier: 0.35.5
+        version: 0.35.5(@types/node@24.19.2)
       zod:
         specifier: 4.6.7
         version: 4.6.7

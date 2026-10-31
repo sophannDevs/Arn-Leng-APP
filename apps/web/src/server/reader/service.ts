@@ -1,18 +1,31 @@
 import 'server-only';
-import { createPresignedEpisodeImageSigner } from '@inkline/storage';
+import {
+  type EpisodeImageUrlSigner,
+  createEdgeEpisodeImageSigner,
+  createPresignedEpisodeImageSigner,
+} from '@inkline/storage';
 import { headers } from 'next/headers';
 import { cache } from 'react';
 import { ImageUrlRateLimiter, RedisCounterStore, clientIp } from '../auth/rate-limit';
 import { getCurrentUser } from '../auth/session';
+import { env } from '@/env';
 import { redis } from '../redis';
+import { trackEpisodeRead } from '../security/scraping';
 import { buckets, storage } from '../storage';
+import { withWatermark } from './watermark';
 import { type ReaderData, type ReaderDeps, buildReader } from './access';
 import { type EpisodeSelector, loadReaderInput } from './load';
 
 /** The ONE place the web app asks for episode image addresses (see packages/storage). */
-export const episodeImageSigner = createPresignedEpisodeImageSigner(storage, {
-  bucket: buckets.private,
-});
+const baseSigner: EpisodeImageUrlSigner =
+  env.IMAGE_EDGE_URL && env.IMAGE_EDGE_SECRET
+    ? // Production: signed tokens on the Cloudflare Worker (apps/edge-images).
+      createEdgeEpisodeImageSigner({ baseUrl: env.IMAGE_EDGE_URL, secret: env.IMAGE_EDGE_SECRET })
+    : // Development and before the Worker exists: presigned URLs straight from the bucket.
+      createPresignedEpisodeImageSigner(storage, { bucket: buckets.private });
+
+export const episodeImageSigner: EpisodeImageUrlSigner =
+  env.WATERMARK_ENABLED === 'true' ? withWatermark(baseSigner) : baseSigner;
 
 const limiter = new ImageUrlRateLimiter(new RedisCounterStore(redis));
 
@@ -22,7 +35,11 @@ export async function readerDepsForRequest(): Promise<ReaderDeps> {
   const ip = clientIp(await headers());
   return {
     signer: episodeImageSigner,
-    consumeQuota: () => limiter.consume({ userId: user?.id ?? null, ip }),
+    consumeQuota: async (episodeId) => {
+      await limiter.consume({ userId: user?.id ?? null, ip });
+      // Only signed-in users have an account to flag. Staff reading their own series are not scrapers.
+      if (user && user.role === 'reader') await trackEpisodeRead(user.id, episodeId);
+    },
   };
 }
 

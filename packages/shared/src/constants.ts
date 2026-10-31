@@ -91,6 +91,20 @@ export const IMAGE_URL_RATE_LIMIT = { maxAttempts: 600, windowSeconds: 10 * 60 }
 export const COMMENT_MAX_LENGTH = 1000;
 export const COMMENTS_PAGE_SIZE = 20;
 /** Comments a user may post per window. */
+/** Everything a signed-in user can call: generous for real use, a ceiling for scripts. Per user. */
+export const API_USER_RATE_LIMIT = { maxAttempts: 240, windowSeconds: 60 } as const;
+/** Public endpoints (search, lists): per client address, per minute. */
+export const API_IP_RATE_LIMIT = { maxAttempts: 300, windowSeconds: 60 } as const;
+/** Studio and account server actions, per user. */
+export const ACTION_RATE_LIMIT = { maxAttempts: 60, windowSeconds: 60 } as const;
+/** Image address requests per user per hour (a real reader needs a few per episode). */
+export const IMAGE_URL_HOURLY_LIMIT = { maxAttempts: 1500, windowSeconds: 60 * 60 } as const;
+/** Reading more than this many different episodes in the window flags the account for review. */
+export const SCRAPING_FLAG = {
+  maxEpisodes: 20,
+  windowSeconds: 5 * 60,
+  quietSeconds: 60 * 60,
+} as const;
 export const CHECKOUT_RATE_LIMIT = { maxAttempts: 10, windowSeconds: 10 * 60 } as const;
 export const COMMENT_RATE_LIMIT = { maxAttempts: 10, windowSeconds: 10 * 60 } as const;
 /** Reports a user may file per window. */

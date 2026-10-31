@@ -13,6 +13,7 @@ import { and, count, eq, inArray, max, notInArray, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '../db';
+import { actionAllowed } from '../engagement/limits';
 import { requireEpisodeOwner, requireRole, requireSeriesOwner, requireUser } from '../auth/session';
 import { enqueueProcessEpisode } from '../queue';
 import { buckets, storage } from '../storage';
@@ -60,6 +61,7 @@ export async function createSeriesAction(
   input: unknown,
 ): Promise<ActionOutcome<{ seriesId: string }>> {
   const user = await requireRole('creator', 'admin');
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   const parsed = seriesInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'invalid' };
   try {
@@ -83,7 +85,8 @@ export async function createSeriesAction(
 }
 
 export async function updateSeriesAction(input: unknown): Promise<ActionOutcome> {
-  const { series: current } = await requireSeriesOwner(field(input, 'seriesId'));
+  const { user, series: current } = await requireSeriesOwner(field(input, 'seriesId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   const parsed = seriesInputSchema.safeParse(field(input, 'values'));
   if (!parsed.success) return { ok: false, error: 'invalid' };
   try {
@@ -100,7 +103,8 @@ export async function updateSeriesAction(input: unknown): Promise<ActionOutcome>
 export async function setSeriesCoverAction(
   input: unknown,
 ): Promise<ActionOutcome<{ coverKey: string }>> {
-  const { series: current } = await requireSeriesOwner(field(input, 'seriesId'));
+  const { user, series: current } = await requireSeriesOwner(field(input, 'seriesId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   const key = await verifyPublicUpload(
     field(input, 'key'),
     keyPrefix.cover(current.id),
@@ -120,7 +124,8 @@ export async function setSeriesCoverAction(
 export async function createEpisodeAction(
   input: unknown,
 ): Promise<ActionOutcome<{ episodeId: string }>> {
-  const { series: current } = await requireSeriesOwner(field(input, 'seriesId'));
+  const { user, series: current } = await requireSeriesOwner(field(input, 'seriesId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   // Two creators' tabs can race for the same number; the unique (series, number) index decides.
   for (let attempt = 0; attempt < 3; attempt++) {
     const [top] = await db
@@ -149,7 +154,8 @@ export async function createEpisodeAction(
 }
 
 export async function updateEpisodeAction(input: unknown): Promise<ActionOutcome> {
-  const { episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  const { user, episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   if (!isEditableStatus(episode.status)) return { ok: false, error: 'locked' };
   const parsed = episodeInputSchema.safeParse(field(input, 'values'));
   if (!parsed.success) return { ok: false, error: 'invalid' };
@@ -173,7 +179,8 @@ export async function updateEpisodeAction(input: unknown): Promise<ActionOutcome
 export async function setEpisodeThumbnailAction(
   input: unknown,
 ): Promise<ActionOutcome<{ thumbnailKey: string }>> {
-  const { episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  const { user, episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   if (!isEditableStatus(episode.status)) return { ok: false, error: 'locked' };
   const key = await verifyPublicUpload(
     field(input, 'key'),
@@ -192,7 +199,8 @@ export async function setEpisodeThumbnailAction(
 
 /** Only drafts (and failed episodes) can be deleted; published episodes stay. */
 export async function deleteEpisodeAction(input: unknown): Promise<ActionOutcome> {
-  const { episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  const { user, episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   if (!isEditableStatus(episode.status)) return { ok: false, error: 'locked' };
   const uploads = await db
     .select({ key: episodeUploads.objectKey })
@@ -223,7 +231,8 @@ const SWAP_PLACEHOLDER = 1_000_000_000;
  * must still be unpublished: published episodes keep their numbers (links, "first 3 free").
  */
 export async function moveEpisodeAction(input: unknown): Promise<ActionOutcome> {
-  const { episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  const { user, episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   const direction = directionSchema.safeParse(field(input, 'direction'));
   if (!direction.success) return { ok: false, error: 'invalid' };
   if (!isEditableStatus(episode.status)) return { ok: false, error: 'locked' };
@@ -253,7 +262,8 @@ class SubmitConflict extends Error {}
  * the episode to "processing" and queues the process-episode job.
  */
 export async function submitEpisodeAction(input: unknown): Promise<ActionOutcome> {
-  const { episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  const { user, episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   if (!isEditableStatus(episode.status)) return { ok: false, error: 'locked' };
   const parsed = submitEpisodeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'invalid' };
@@ -332,7 +342,8 @@ export async function submitEpisodeAction(input: unknown): Promise<ActionOutcome
  * the problem, the creator changes the pages and submits again instead.
  */
 export async function retryProcessingAction(input: unknown): Promise<ActionOutcome> {
-  const { episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  const { user, episode } = await requireEpisodeOwner(field(input, 'episodeId'));
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   if (episode.status !== 'failed') return { ok: false, error: 'locked' };
   const [pages] = await db
     .select({ pages: count() })
@@ -369,6 +380,7 @@ export async function setAvatarAction(
   input: unknown,
 ): Promise<ActionOutcome<{ avatarKey: string }>> {
   const user = await requireUser({ skipTwoFactor: true });
+  if (!(await actionAllowed(user.id))) return { ok: false, error: 'rateLimited' };
   const key = await verifyPublicUpload(
     field(input, 'key'),
     keyPrefix.avatar(user.id),

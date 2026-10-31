@@ -3,6 +3,7 @@ import { idSchema } from '@inkline/shared';
 import { and, eq } from 'drizzle-orm';
 import { apiError, authorizeApi } from '@/server/auth/api';
 import { db } from '@/server/db';
+import { limitUser } from '@/server/engagement/limits';
 
 /**
  * GET: what happened to one of the signed-in user's payments, as OUR records say. This never asks
@@ -12,6 +13,10 @@ import { db } from '@/server/db';
 export async function GET(_request: Request, context: { params: Promise<{ paymentId: string }> }) {
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const id = idSchema.safeParse((await context.params).paymentId);
   if (!id.success) return apiError(400, 'invalid_request');
   const [payment] = await db

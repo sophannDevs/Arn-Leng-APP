@@ -3,11 +3,16 @@ import { apiError, authorizeApi } from '@/server/auth/api';
 import { RateLimitedError } from '@/server/auth/rate-limit';
 import { startCheckout } from '@/server/billing/checkout';
 import { checkoutLimiter } from '@/server/engagement/limits';
+import { limitUser } from '@/server/engagement/limits';
 
 /** POST {planCode, returnTo?}: start a payment. Returns where to send the browser to pay. */
 export async function POST(request: Request) {
   const auth = await authorizeApi();
   if ('response' in auth) return auth.response;
+  {
+    const limited = await limitUser(auth.user.id);
+    if (limited) return limited;
+  }
   const input = checkoutInputSchema.safeParse(await request.json().catch(() => null));
   if (!input.success) return apiError(400, 'invalid_request');
   try {
