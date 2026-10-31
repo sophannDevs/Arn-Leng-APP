@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createStorageClient, presignUpload, publicObjectUrl } from './client';
+import { createPresignedEpisodeImageSigner } from './episode-images';
 import {
   chunkFileKey,
   chunkKeyPrefix,
@@ -109,5 +110,66 @@ describe('processed image keys', () => {
     expect(variantsPrefix(key)).toBe(`covers/${EPISODE}/${UUID}/`);
     expect(variantKey(key, 480, 'webp')).toBe(`covers/${EPISODE}/${UUID}/480.webp`);
     expect(stripExtension('no-extension')).toBe('no-extension');
+  });
+});
+
+describe('createPresignedEpisodeImageSigner', () => {
+  const chunks = [
+    { position: 1, keyPrefix: `episodes/${EPISODE}/abc123/1`, width: 800 },
+    { position: 2, keyPrefix: `episodes/${EPISODE}/abc123/2`, width: 800 },
+  ];
+  const at = (iso: string) => () => new Date(iso);
+  const signer = (now: () => Date) =>
+    createPresignedEpisodeImageSigner(client, { bucket: 'inkline-private', now });
+
+  it('gives each chunk AVIF and WebP srcsets at the widths that exist, never above the chunk width', async () => {
+    const { chunks: signed } = await signer(at('2026-06-15T12:01:00Z')).sign(chunks);
+    expect(signed.map((c) => c.position)).toEqual([1, 2]);
+    const widths = (srcset: string) => srcset.split(', ').map((entry) => entry.split(' ').pop());
+    expect(widths(signed[0]?.avif ?? '')).toEqual(['480w', '800w']);
+    expect(widths(signed[0]?.webp ?? '')).toEqual(['480w', '800w']);
+    const paths = (srcset: string) =>
+      srcset.split(', ').map((entry) => new URL(entry.split(' ')[0] ?? '').pathname);
+    expect(paths(signed[0]?.avif ?? '')).toEqual([
+      `/inkline-private/episodes/${EPISODE}/abc123/1-480.avif`,
+      `/inkline-private/episodes/${EPISODE}/abc123/1-800.avif`,
+    ]);
+    expect(new URL(signed[0]?.src ?? '').pathname).toBe(
+      `/inkline-private/episodes/${EPISODE}/abc123/1-800.webp`,
+    );
+  });
+
+  it('signs every address so it stays valid for at least 10 minutes', async () => {
+    const { chunks: signed, expiresAt } = await signer(at('2026-06-15T12:04:59Z')).sign(chunks);
+    const first = new URL(signed[0]?.src ?? '');
+    expect(first.searchParams.get('X-Amz-Algorithm')).toBe('AWS4-HMAC-SHA256');
+    expect(first.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/);
+    // asked at 12:04:59 in the window that began at 12:00:00 -> valid until 12:15:00
+    expect(expiresAt.toISOString()).toBe('2026-06-15T12:15:00.000Z');
+    expect(expiresAt.getTime() - new Date('2026-06-15T12:04:59Z').getTime()).toBeGreaterThanOrEqual(
+      10 * 60 * 1000,
+    );
+  });
+
+  it('hands out the same addresses within a window, and new ones in the next', async () => {
+    const early = await signer(at('2026-06-15T12:00:10Z')).sign(chunks);
+    const late = await signer(at('2026-06-15T12:04:50Z')).sign(chunks);
+    const next = await signer(at('2026-06-15T12:05:10Z')).sign(chunks);
+    expect(late.chunks[0]?.src).toBe(early.chunks[0]?.src); // browsers can reuse what they already have
+    expect(next.chunks[0]?.src).not.toBe(early.chunks[0]?.src);
+    expect(next.expiresAt.getTime() - early.expiresAt.getTime()).toBe(5 * 60 * 1000);
+  });
+
+  it('keeps a small chunk to the widths that fit', async () => {
+    const { chunks: signed } = await signer(at('2026-06-15T12:00:00Z')).sign([
+      { position: 1, keyPrefix: `episodes/${EPISODE}/abc123/1`, width: 300 },
+    ]);
+    expect(signed[0]?.avif.split(', ')).toHaveLength(1);
+    expect(signed[0]?.avif).toMatch(/ 300w$/);
+  });
+
+  it('signs nothing for an empty list', async () => {
+    const result = await signer(at('2026-06-15T12:00:00Z')).sign([]);
+    expect(result.chunks).toEqual([]);
   });
 });

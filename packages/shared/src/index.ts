@@ -1,5 +1,6 @@
 export * from './access';
 export * from './authz';
+export * from './catalog';
 export * from './constants';
 export * from './enums';
 export * from './images';

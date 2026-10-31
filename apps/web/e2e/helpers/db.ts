@@ -4,10 +4,13 @@ import {
   episodeImages,
   episodeUploads,
   episodes,
+  plans,
+  readingProgress,
   series,
+  subscriptions,
   users,
 } from '@inkline/db';
-import { asc, eq, inArray, like } from 'drizzle-orm';
+import { and, asc, eq, inArray, like } from 'drizzle-orm';
 
 export const E2E_EMAIL_PREFIX = 'e2e-';
 export const E2E_EMAIL_DOMAIN = '@inkline.test';
@@ -62,6 +65,143 @@ export function insertSeries(ownerEmail: string, title: string) {
     if (!row) throw new Error('Series not inserted');
     return row.id;
   });
+}
+
+/** Inserts a user row directly (no sign-up): for owners of test series. Returns the id. */
+export function insertUser(role: 'reader' | 'creator' = 'creator') {
+  return withDb(async (db) => {
+    const [row] = await db
+      .insert(users)
+      .values({ email: newTestEmail(), name: 'E2E Owner', role, emailVerified: true })
+      .returning({ id: users.id, email: users.email });
+    if (!row) throw new Error('User not inserted');
+    return row;
+  });
+}
+
+export type TestEpisode = {
+  number: number;
+  title?: string;
+  status?: 'draft' | 'published';
+  accessType?: 'free' | 'subscriber';
+  /** Days from now until it becomes free (negative = already free). Omit for "never". */
+  freeInDays?: number;
+  publishedDaysAgo?: number;
+};
+
+/** Inserts a published series with episodes, without images. Returns the series and episode ids. */
+export function insertCatalog(input: {
+  ownerId: string;
+  title: string;
+  genres?: string[];
+  description?: string;
+  isPublished?: boolean;
+  episodes: TestEpisode[];
+}) {
+  return withDb(async (db) => {
+    const slug = `e2e-${Math.random().toString(36).slice(2, 10)}`;
+    const [row] = await db
+      .insert(series)
+      .values({
+        creatorId: input.ownerId,
+        slug,
+        title: input.title,
+        description: input.description ?? `A series made by the end-to-end tests: ${input.title}.`,
+        genres: input.genres ?? ['fantasy'],
+        isPublished: input.isPublished ?? true,
+      })
+      .returning({ id: series.id });
+    if (!row) throw new Error('Series not inserted');
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+    const inserted = input.episodes.length
+      ? await db
+          .insert(episodes)
+          .values(
+            input.episodes.map((e) => ({
+              seriesId: row.id,
+              number: e.number,
+              title: e.title ?? `Episode ${e.number}`,
+              status: e.status ?? 'published',
+              accessType: e.accessType ?? 'free',
+              earlyAccessDays: e.freeInDays !== undefined ? 7 : null,
+              freeAfter: e.freeInDays !== undefined ? new Date(now + e.freeInDays * DAY) : null,
+              publishedAt:
+                (e.status ?? 'published') === 'published'
+                  ? new Date(now - (e.publishedDaysAgo ?? 1) * DAY)
+                  : null,
+            })),
+          )
+          .returning({ id: episodes.id, number: episodes.number })
+      : [];
+    return {
+      seriesId: row.id,
+      slug,
+      episodes: Object.fromEntries(inserted.map((e) => [e.number, e.id])) as Record<number, string>,
+    };
+  });
+}
+
+/** Stores episode_images rows for an episode (the files themselves are put in MinIO by the caller). */
+export function insertChunks(
+  episodeId: string,
+  chunks: Array<{
+    position: number;
+    keyPrefix: string;
+    width: number;
+    height: number;
+    blurDataUrl: string;
+  }>,
+) {
+  return withDb((db) =>
+    db.insert(episodeImages).values(chunks.map((c) => ({ ...c, episodeId, bytes: 1000 }))),
+  );
+}
+
+/** Gives a user an active subscription (creating a throw-away plan for it). */
+export function insertActiveSubscription(userId: string, status: 'active' | 'expired' = 'active') {
+  return withDb(async (db) => {
+    const [plan] = await db
+      .insert(plans)
+      .values({
+        code: `e2e-${Math.random().toString(36).slice(2, 10)}`,
+        name: 'E2E plan',
+        interval: 'month',
+        priceMinor: 499,
+        currency: 'USD',
+      })
+      .returning({ id: plans.id });
+    if (!plan) throw new Error('Plan not inserted');
+    const now = Date.now();
+    await db.insert(subscriptions).values({
+      userId,
+      planId: plan.id,
+      status,
+      provider: 'payway',
+      currentPeriodStart: new Date(now - 10 * 86_400_000),
+      currentPeriodEnd: new Date(now + (status === 'active' ? 20 : -5) * 86_400_000),
+    });
+    return plan.id;
+  });
+}
+
+export function getProgress(userId: string, seriesId: string) {
+  return withDb(
+    async (db) =>
+      (
+        await db
+          .select()
+          .from(readingProgress)
+          .where(and(eq(readingProgress.userId, userId), eq(readingProgress.seriesId, seriesId)))
+      )[0] ?? null,
+  );
+}
+
+export function getUserId(email: string) {
+  return withDb(
+    async (db) =>
+      (await db.select({ id: users.id }).from(users).where(eq(users.email, email)))[0]?.id ?? null,
+  );
 }
 
 /** Inserts a draft episode in the series and returns its id. */
@@ -180,6 +320,8 @@ export function deleteTestUsers() {
       await db.select({ id: users.id }).from(users).where(like(users.email, pattern))
     ).map((u) => u.id);
     if (ids.length === 0) return;
+    await db.delete(subscriptions).where(inArray(subscriptions.userId, ids));
+    await db.delete(plans).where(like(plans.code, 'e2e-%'));
     await db.delete(series).where(inArray(series.creatorId, ids));
     await db.delete(users).where(inArray(users.id, ids));
   });

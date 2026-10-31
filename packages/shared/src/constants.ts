@@ -61,3 +61,18 @@ export const IMAGE_VARIANT_WIDTHS = {
   thumbnail: [240, 480, 800],
   avatar: [64, 128, 256],
 } as const;
+
+/** Public site and reader. */
+export const EPISODES_PAGE_SIZE = 30;
+/** Cards on browse pages (genre, search): no unbounded queries. */
+export const BROWSE_PAGE_LIMIT = 48;
+/** The first chunks of an episode load at once; the rest load as the reader scrolls to them. */
+export const READER_EAGER_CHUNKS = 2;
+/** When the reader passes this much of an episode, the next episode's first chunks are fetched. */
+export const READER_PREFETCH_AT = 0.8;
+/** Ask for fresh image addresses when the current ones have less than this left (seconds). */
+export const READER_URL_REFRESH_MARGIN_SECONDS = 90;
+/** Reading progress is saved at most this often (milliseconds). */
+export const READER_PROGRESS_DEBOUNCE_MS = 2000;
+/** Image address requests (episode page loads and refreshes) per user or IP per window. */
+export const IMAGE_URL_RATE_LIMIT = { maxAttempts: 600, windowSeconds: 10 * 60 } as const;

@@ -39,6 +39,12 @@ import {
  *    never from the client.
  */
 
+/** Public pages are cached; after a series changes, make them rebuild so readers see it. */
+function revalidatePublicSeries(...slugs: string[]) {
+  revalidatePath('/');
+  for (const slug of new Set(slugs)) revalidatePath(`/series/${slug}`);
+}
+
 const swallow = async (fn: () => Promise<unknown>) => {
   try {
     await fn();
@@ -81,6 +87,7 @@ export async function updateSeriesAction(input: unknown): Promise<ActionOutcome>
     throw error;
   }
   revalidatePath('/studio');
+  revalidatePublicSeries(current.slug, parsed.data.slug); // the old address (now gone) and the new one
   return { ok: true };
 }
 
@@ -100,6 +107,7 @@ export async function setSeriesCoverAction(
   }
   await queueImageProcessing('cover', key);
   revalidatePath('/studio');
+  revalidatePublicSeries(current.slug);
   return { ok: true, coverKey: key };
 }
 

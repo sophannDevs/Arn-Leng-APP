@@ -1,4 +1,9 @@
-import { AUTH_IP_RATE_LIMIT, AUTH_RATE_LIMIT, UPLOAD_URL_RATE_LIMIT } from '@inkline/shared';
+import {
+  AUTH_IP_RATE_LIMIT,
+  AUTH_RATE_LIMIT,
+  IMAGE_URL_RATE_LIMIT,
+  UPLOAD_URL_RATE_LIMIT,
+} from '@inkline/shared';
 
 /** A counter with a time window. Redis in production; an in-memory fake in tests. */
 export interface CounterStore {
@@ -113,6 +118,20 @@ export class UploadRateLimiter {
       files,
     );
     if (count > UPLOAD_URL_RATE_LIMIT.maxAttempts) throw new RateLimitedError();
+  }
+}
+
+/**
+ * Limits how often one reader (by user id, or by IP when signed out) may be handed episode image
+ * addresses: every episode page load and every refresh counts once.
+ */
+export class ImageUrlRateLimiter {
+  constructor(private readonly store: CounterStore) {}
+
+  async consume(who: { userId: string | null; ip: string }): Promise<void> {
+    const key = who.userId ? `rl:image-url:user:${who.userId}` : `rl:image-url:ip:${who.ip}`;
+    const count = await this.store.increment(key, IMAGE_URL_RATE_LIMIT.windowSeconds);
+    if (count > IMAGE_URL_RATE_LIMIT.maxAttempts) throw new RateLimitedError();
   }
 }
 

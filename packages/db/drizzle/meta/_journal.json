@@ -36,6 +36,13 @@
       "when": 1793366943333,
       "tag": "0004_processing-error",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793373231240,
+      "tag": "0005_public-site-indexes",
+      "breakpoints": true
     }
   ]
 }

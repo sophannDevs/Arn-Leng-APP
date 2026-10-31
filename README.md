@@ -69,6 +69,16 @@ Creators and admins manage their work at `/studio`: create and edit a series (ti
 - **Permissions.** Every studio server action calls `requireSeriesOwner` / `requireEpisodeOwner` first, so only the series owner or an admin can change a series or its episodes, even when an action is called directly. `apps/web/src/server/actions/studio.test.ts` and the Playwright test "a creator cannot open or change another creator's series" prove it.
 - **Browser uploads need CORS on the bucket.** MinIO allows all origins by default. For Cloudflare R2, add a CORS policy to both buckets allowing `PUT` (and `GET`/`HEAD`) from your site's origin with the `Content-Type` header.
 
+## Public site and reader
+
+- **Pages:** `/` (featured, new episodes, trending placeholder, browse by genre), `/series/[slug]`, `/genres/[genre]`, `/search`, and the reader at `/series/[slug]/[number]`. `/library` and `/premium` are placeholders until Phases 6 and 7.
+- **Caching:** home, series and genre pages are built once and kept for everyone (5 minutes as a safety net); the worker asks the web app to rebuild them whenever an episode is published, and studio edits do the same. They don't depend on who is signed in: the account menu and "Continue reading" load in the browser. The reader is different for every reader, so it is never cached (`Cache-Control: no-store`).
+- **Reader access:** the server decides with the access rule from `CLAUDE.md` first. Only if the reader may read the episode does it ask `packages/storage` for image addresses, so a locked episode returns just the lock screen (no addresses, no storage keys, no blur previews). `POST /api/episodes/{id}/image-urls` applies the same rule. Both are rate limited per user (or per IP when signed out).
+- **Image addresses** are signed in 5-minute windows, so everyone in a window gets the same addresses (browsers can reuse images) and each stays valid for 10 to 15 minutes. The reader asks for fresh ones for chunks that haven't loaded yet when they are close to expiring. Swapping in a Cloudflare Worker later only means replacing `createPresignedEpisodeImageSigner`.
+- **Reading progress:** saved for signed-in readers while they scroll (every 2 seconds at most, and when the tab is hidden); the series page then offers "Continue Ep. N".
+- **Performance:** Lighthouse (mobile, production build, local database) scored 100 on home and 93 to 100 on series and reader pages, with no layout shift. To measure yourself: `pnpm --filter @inkline/web build`, then `next start`, then Lighthouse. A production build needs real secrets (not the development placeholders), `RESEND_API_KEY` and Turnstile keys.
+- **Sample content:** `pnpm seed:images` also makes covers for the seeded series.
+
 ## Image processing
 
 When a creator submits an episode, the web app sets it to `processing` and queues a `process-episode` job. The worker (`apps/worker`) then:
@@ -147,6 +157,7 @@ The build follows the phase plan in the project's build prompt. Each phase ends 
 - [x] Phase 2: authentication and roles
 - [x] Phase 3: creator studio and uploads
 - [x] Phase 4: image processing worker
-- [ ] Phases 5–11: public site and reader, engagement, subscriptions, PayWay, security, admin, deployment
+- [x] Phase 5: public site and reader
+- [ ] Phases 6–11: engagement, subscriptions, PayWay, security, admin, deployment
 
 # Arn-Leng-APP

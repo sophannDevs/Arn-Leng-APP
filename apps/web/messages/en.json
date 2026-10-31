@@ -11,11 +11,50 @@
     "titleLine1": "Read the Best",
     "titleLine2": "Webtoons",
     "lead": "The first {freeEpisodes} episodes of every series are free. Subscribers read new episodes {earlyAccessDays} days early.",
-    "badge": "Coming soon",
-    "status": "We're building Inkline right now. Check back soon for the first series.",
-    "navLabel": "Account",
-    "login": "Log in",
-    "signup": "Sign up"
+    "startReading": "Start reading",
+    "seePremium": "See Premium",
+    "features": {
+      "free": {
+        "title": "{freeEpisodes} free episodes",
+        "text": "Start any series at no cost."
+      },
+      "early": {
+        "title": "{days} days early",
+        "text": "Subscribers read new episodes first."
+      },
+      "anywhere": {
+        "title": "Read anywhere",
+        "text": "Built for phones, works on any screen."
+      },
+      "secure": {
+        "title": "Secure payment",
+        "text": "Pay with ABA PayWay. Cancel anytime."
+      }
+    },
+    "featured": {
+      "eyebrow": "Comic",
+      "title": "Featured series"
+    },
+    "newEpisodes": {
+      "title": "New episodes",
+      "empty": "New episodes will show up here."
+    },
+    "trending": {
+      "title": "Trending this week",
+      "note": "Rankings are coming soon. For now: series with the most episodes."
+    },
+    "browse": {
+      "eyebrow": "Browse",
+      "title": "Browse by genre",
+      "allSeries": "Latest series",
+      "empty": "No series have been published yet. Check back soon!"
+    },
+    "premium": {
+      "eyebrow": "Inkline Premium",
+      "title": "Read every new episode a week early.",
+      "price": "From {monthly} a month, or {yearly} a year.",
+      "cta": "See plans"
+    }
   },
   "email": {
     "greeting": "Hi {name},",
@@ -384,5 +423,180 @@
     "title": "No access",
     "lead": "Your account doesn't have permission to open this page.",
     "home": "Back to home"
+  },
+  "site": {
+    "skip": "Skip to content",
+    "nav": {
+      "label": "Main",
+      "home": "Home",
+      "library": "Library",
+      "premium": "Premium",
+      "browse": "Browse",
+      "search": "Search",
+      "account": "Account"
+    },
+    "search": {
+      "label": "Search series",
+      "placeholder": "Search series",
+      "submit": "Search"
+    },
+    "account": {
+      "login": "Log in",
+      "signup": "Sign up",
+      "menu": "Account menu",
+      "account": "Account",
+      "studio": "Creator studio",
+      "admin": "Admin",
+      "logout": "Log out",
+      "hello": "Hi, {name}"
+    },
+    "footer": {
+      "tagline": "Webtoons and comics, made for phones.",
+      "copyright": "© {year} Inkline"
+    },
+    "cover": {
+      "noCover": "No cover"
+    }
+  },
+  "series": {
+    "breadcrumb": "Breadcrumb",
+    "home": "Home",
+    "by": "by {name}",
+    "status": {
+      "ongoing": "Ongoing",
+      "completed": "Completed",
+      "hiatus": "On hiatus"
+    },
+    "age": {
+      "all": "All ages",
+      "teen": "Teen",
+      "mature": "Mature"
+    },
+    "stats": {
+      "episodes": "Episodes",
+      "latest": "Latest"
+    },
+    "read": {
+      "start": "Start reading",
+      "startEpisode": "Start reading Ep. {number}",
+      "continue": "Continue Ep. {number}",
+      "latest": "Latest episode"
+    },
+    "note": "Episodes 1 to {free} are free. Newer episodes are for subscribers first and become free {days} days after they come out.",
+    "episodes": {
+      "title": "Episodes",
+      "sort": "Sort episodes",
+      "newest": "Newest",
+      "first": "First",
+      "more": "Show more episodes",
+      "loading": "Loading…",
+      "failed": "Couldn't load episodes. Try again.",
+      "empty": "No episodes have been published yet.",
+      "free": "Free",
+      "episode": "Ep. {number}",
+      "lockedLabel": "Subscribers only",
+      "freeIn": "{unit, select, days {Free in {value, plural, one {# day} other {# days}}} hours {Free in {value, plural, one {# hour} other {# hours}}} other {Free in {value, plural, one {# minute} other {# minutes}}}}",
+      "soon": "Free soon"
+    },
+    "related": {
+      "title": "You may also like",
+      "all": "All series"
+    },
+    "meta": {
+      "description": "Read {title} on Inkline. {text}",
+      "fallback": "Read it on Inkline: the first {free} episodes are free."
+    }
+  },
+  "genres": {
+    "title": "{genre} series",
+    "lead": "{count, plural, =0 {No series in this genre yet.} one {# series} other {# series}}",
+    "back": "All genres",
+    "names": {
+      "action": "Action",
+      "comedy": "Comedy",
+      "drama": "Drama",
+      "fantasy": "Fantasy",
+      "horror": "Horror",
+      "mystery": "Mystery",
+      "romance": "Romance",
+      "sci-fi": "Sci-fi",
+      "slice-of-life": "Slice of life",
+      "sports": "Sports",
+      "thriller": "Thriller"
+    },
+    "meta": {
+      "description": "Read {genre} webtoons and comics on Inkline."
+    }
+  },
+  "search": {
+    "title": "Search",
+    "resultsFor": "Results for “{query}”",
+    "count": "{count, plural, =0 {No series found.} one {# series} other {# series}}",
+    "hint": "Search by title or description.",
+    "empty": "Try another word, or browse by genre.",
+    "meta": {
+      "description": "Search webtoons and comics on Inkline."
+    }
+  },
+  "library": {
+    "title": "My library",
+    "lead": "Your followed series and reading history will live here. It's coming soon.",
+    "home": "Browse series"
+  },
+  "premium": {
+    "title": "Inkline Premium",
+    "lead": "Subscribe to read every new episode {days} days early. Plans and checkout are coming soon.",
+    "price": "{monthly} a month, or {yearly} a year.",
+    "home": "Back to home"
+  },
+  "reader": {
+    "back": "Back to series",
+    "episodes": "Episode list",
+    "drawerTitle": "Episodes",
+    "closeDrawer": "Close episode list",
+    "prev": "Prev",
+    "next": "Next",
+    "prevEpisode": "Previous episode",
+    "nextEpisode": "Next episode",
+    "none": "No more episodes",
+    "episodeLabel": "Ep. {number}: {title}",
+    "pageTitle": "{series} Ep. {number}",
+    "chunkLabel": "Page section {position} of {count}",
+    "end": {
+      "title": "End of episode {number}",
+      "next": "Next episode",
+      "nextLocked": "Next episode (subscribers)",
+      "back": "Back to series",
+      "last": "You're all caught up. New episodes will appear here."
+    },
+    "empty": {
+      "title": "No pages yet",
+      "text": "This episode doesn't have any pages. If it's yours, upload pages in the studio."
+    },
+    "limited": {
+      "title": "Slow down a little",
+      "text": "You've loaded a lot of episodes in a short time. Try again in a few minutes.",
+      "back": "Back to series"
+    },
+    "lock": {
+      "title": "This episode is for subscribers",
+      "text": "Subscribe to read it now, or wait until it's free.",
+      "freeIn": "{unit, select, days {Free in {value, plural, one {# day} other {# days}}} hours {Free in {value, plural, one {# hour} other {# hours}}} other {Free in {value, plural, one {# minute} other {# minutes}}}}",
+      "subscribe": "Subscribe",
+      "login": "Log in",
+      "haveAccount": "Already a subscriber?",
+      "back": "Back to series",
+      "never": "This episode is for subscribers only."
+    },
+    "loadFailed": "This section didn't load. Tap to retry.",
+    "locked": "Locked",
+    "current": "Reading now"
+  },
+  "seo": {
+    "home": {
+      "title": "Inkline: Webtoons and Comics",
+      "description": "Read webtoons and comics on Inkline. The first {free} episodes of every series are free."
+    },
+    "ogTagline": "Webtoons and comics"
   }
 }

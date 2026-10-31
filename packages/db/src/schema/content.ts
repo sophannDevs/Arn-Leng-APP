@@ -41,7 +41,20 @@ export const series = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index('series_creator_idx').on(t.creatorId)],
+  (t) => [
+    index('series_creator_idx').on(t.creatorId),
+    // Home page and sitemap: published series, most recently updated first.
+    index('series_published_updated_idx')
+      .on(t.updatedAt.desc())
+      .where(sql`${t.isPublished}`),
+    // Browse by genre: genres @> ARRAY['fantasy'].
+    index('series_genres_idx').using('gin', t.genres),
+    // Search: PostgreSQL full-text search over title and description.
+    index('series_search_idx').using(
+      'gin',
+      sql`to_tsvector('simple', ${t.title} || ' ' || ${t.description})`,
+    ),
+  ],
 ).enableRLS();
 
 export const episodes = pgTable(
@@ -68,6 +81,10 @@ export const episodes = pgTable(
   (t) => [
     // Also serves "episodes of a series in order" lookups.
     unique('episodes_series_number_unique').on(t.seriesId, t.number),
+    // "New episodes" on the home page and the sitemap: newest published first.
+    index('episodes_published_at_idx')
+      .on(t.publishedAt.desc())
+      .where(sql`${t.status} = 'published'`),
     check('episodes_number_positive', sql`${t.number} >= 1`),
     check(
       'episodes_early_access_days_range',

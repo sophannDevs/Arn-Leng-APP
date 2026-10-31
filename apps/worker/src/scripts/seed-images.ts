@@ -2,10 +2,12 @@ import '../load-env';
 import { randomUUID } from 'node:crypto';
 import { episodeUploads, episodeImages, episodes, series, users } from '@inkline/db';
 import { keyPrefix } from '@inkline/storage';
-import { and, asc, eq, inArray, like, notExists } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, like, notExists } from 'drizzle-orm';
 import { createJobDeps } from '../deps';
 import { parseWorkerEnv } from '../env';
+import { makeSampleCover } from '../images/sample-covers';
 import { makeSamplePage } from '../images/sample-pages';
+import { renderImageVariants } from '../images/variants';
 import { renderEpisodeImages } from '../images/pipeline';
 import { removeOldRuns, replaceEpisodeImages } from '../jobs/process-episode';
 import { Semaphore } from '../semaphore';
@@ -19,6 +21,7 @@ import { Semaphore } from '../semaphore';
  *   pnpm seed:images --episodes 3         only the first 3 episodes of each series
  *   pnpm seed:images --pages 3            pages per episode (default 2)
  *   pnpm seed:images --force              redo episodes that already have images
+ *   pnpm seed:images --no-covers          skip the series covers
  *
  * Only series owned by @inkline.test users (the seed data) are touched.
  */
@@ -78,6 +81,29 @@ try {
       ),
     )
     .orderBy(asc(series.slug), asc(episodes.number));
+
+  // Covers for seeded series that don't have one: the original goes in the public bucket, then the
+  // three smaller sizes are made the same way a real upload gets them.
+  if (!args.includes('--no-covers')) {
+    const needCover = await db
+      .select({ id: series.id, title: series.title, slug: series.slug })
+      .from(series)
+      .innerJoin(users, eq(users.id, series.creatorId))
+      .where(
+        and(
+          like(users.email, '%@inkline.test'),
+          force ? undefined : isNull(series.coverKey),
+          seriesFilter ? inArray(series.slug, seriesFilter) : undefined,
+        ),
+      );
+    for (const item of needCover) {
+      const key = `${keyPrefix.cover(item.id)}${randomUUID()}.jpg`;
+      await deps.publicStore.put(key, await makeSampleCover(item), 'image/jpeg');
+      await renderImageVariants(deps.publicStore, { kind: 'cover', key });
+      await db.update(series).set({ coverKey: key }).where(eq(series.id, item.id));
+      console.info(`  cover: ${item.slug}`);
+    }
+  }
 
   const perSeries = new Map<string, number>();
   const todo = rows.filter((row) => {

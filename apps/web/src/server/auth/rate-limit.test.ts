@@ -1,8 +1,14 @@
-import { AUTH_IP_RATE_LIMIT, AUTH_RATE_LIMIT, UPLOAD_URL_RATE_LIMIT } from '@inkline/shared';
+import {
+  AUTH_IP_RATE_LIMIT,
+  AUTH_RATE_LIMIT,
+  IMAGE_URL_RATE_LIMIT,
+  UPLOAD_URL_RATE_LIMIT,
+} from '@inkline/shared';
 import { describe, expect, it } from 'vitest';
 import {
   AuthRateLimiter,
   type CounterStore,
+  ImageUrlRateLimiter,
   RateLimitedError,
   RedisCounterStore,
   UploadRateLimiter,
@@ -169,6 +175,33 @@ describe('upload URL rate limit', () => {
     await expect(limiter.consume('user-1', 1)).rejects.toBeInstanceOf(RateLimitedError);
     store.now = UPLOAD_URL_RATE_LIMIT.windowSeconds * 1000;
     await expect(limiter.consume('user-1', 1)).resolves.toBeUndefined();
+  });
+});
+
+describe('episode image address rate limit', () => {
+  const max = IMAGE_URL_RATE_LIMIT.maxAttempts;
+
+  it('counts each reader separately: by user id when signed in, by IP when signed out', async () => {
+    const { store } = setup();
+    const limiter = new ImageUrlRateLimiter(store);
+    for (let i = 0; i < max; i++) await limiter.consume({ userId: 'u1', ip: '203.0.113.7' });
+    await expect(limiter.consume({ userId: 'u1', ip: '203.0.113.7' })).rejects.toBeInstanceOf(
+      RateLimitedError,
+    );
+    // Another user on the same IP is not affected, and neither is the same IP without an account.
+    await expect(limiter.consume({ userId: 'u2', ip: '203.0.113.7' })).resolves.toBeUndefined();
+    await expect(limiter.consume({ userId: null, ip: '203.0.113.7' })).resolves.toBeUndefined();
+  });
+
+  it('lets a reader through again after the window', async () => {
+    const { store } = setup();
+    const limiter = new ImageUrlRateLimiter(store);
+    for (let i = 0; i < max; i++) await limiter.consume({ userId: null, ip: '198.51.100.1' });
+    await expect(limiter.consume({ userId: null, ip: '198.51.100.1' })).rejects.toBeInstanceOf(
+      RateLimitedError,
+    );
+    store.now = IMAGE_URL_RATE_LIMIT.windowSeconds * 1000;
+    await expect(limiter.consume({ userId: null, ip: '198.51.100.1' })).resolves.toBeUndefined();
   });
 });
 
