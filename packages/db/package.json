@@ -20,7 +20,7 @@
     "drizzle-kit": "0.31.11",
     "eslint": "9.39.5",
     "tsx": "4.23.15",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "dependencies": {
     "@inkline/shared": "workspace:*",
